@@ -1,6 +1,27 @@
 // Pointers:
 // https://github.com/medialab/xan/blob/prod/src/moonblade/parser.rs
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
+use lazy_static::lazy_static;
+use regex::Regex;
+
+lazy_static! {
+    static ref EMOJI_REGEX: Regex = {
+        let mut pattern = String::from("^(?:");
+
+        let mut all_emojis = emojis::iter().collect::<Vec<_>>();
+        all_emojis.sort_by_key(|e| std::cmp::Reverse((e.as_bytes().len(), e.as_bytes())));
+
+        for emoji in all_emojis {
+            pattern.push_str(&regex::escape(emoji.as_str()));
+            pattern.push('|');
+        }
+
+        pattern.pop();
+        pattern.push(')');
+
+        Regex::new(&pattern).unwrap()
+    };
+}
 
 #[inline]
 fn is_ascii_junk_or_whitespace(c: char) -> bool {
@@ -12,6 +33,8 @@ enum WordTokenKind {
     Word,
     Hashtag,
     Mention,
+    Emoji,
+    Punctuation,
 }
 
 #[derive(PartialEq, Debug)]
@@ -127,6 +150,23 @@ impl<'a> WordTokens<'a> {
             kind: WordTokenKind::Mention,
         })
     }
+
+    fn parse_emoji<'b>(&mut self) -> Option<WordToken<'b>>
+    where
+        'a: 'b,
+    {
+        EMOJI_REGEX.find(self.input).map(|m| {
+            let i = m.end();
+
+            let text = &self.input[..i];
+            self.input = &self.input[i..];
+
+            WordToken {
+                text,
+                kind: WordTokenKind::Emoji,
+            }
+        })
+    }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -151,10 +191,30 @@ impl<'a> Iterator for WordTokens<'a> {
             return mention;
         }
 
+        let emoji = self.parse_emoji();
+
+        if emoji.is_some() {
+            return emoji;
+        }
+
         let i = self
             .input
-            .find(is_ascii_junk_or_whitespace)
+            .find(|c: char| !c.is_alphanumeric())
             .unwrap_or(self.input.len());
+
+        if i == 0 {
+            let (mut i, _) = self.input.char_indices().next().unwrap();
+
+            i += 1;
+
+            let text = &self.input[..i];
+            self.input = &self.input[i..];
+
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Punctuation,
+            });
+        }
 
         let text = &self.input[..i];
         self.input = &self.input[i..];
@@ -197,13 +257,36 @@ mod tests {
         }
     }
 
+    fn e(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Emoji,
+            text,
+        }
+    }
+
+    fn p(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Punctuation,
+            text,
+        }
+    }
+
     #[test]
     fn test_word_tokens() {
-        let words = WordTokens::from("hello world #test @yomgui").collect::<Vec<_>>();
+        let words = WordTokens::from("hello world #test @yomgui ⭐ @yomgui⭐").collect::<Vec<_>>();
 
         assert_eq!(
             words,
-            vec![w("hello"), w("world"), h("#test"), m("@yomgui")]
+            vec![
+                w("hello"),
+                w("world"),
+                h("#test"),
+                m("@yomgui"),
+                e("⭐"),
+                p("@"),
+                w("yomgui"),
+                e("⭐")
+            ]
         );
     }
 }
