@@ -11,6 +11,7 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
 enum WordTokenKind {
     Word,
     Hashtag,
+    Mention,
 }
 
 #[derive(PartialEq, Debug)]
@@ -83,6 +84,49 @@ impl<'a> WordTokens<'a> {
             kind: WordTokenKind::Hashtag,
         })
     }
+
+    fn parse_mention<'b>(&mut self) -> Option<WordToken<'b>>
+    where
+        'a: 'b,
+    {
+        let mut chars = self.input.char_indices();
+        let mut i: usize;
+
+        let first = chars.next();
+
+        match first {
+            None => return None,
+            Some((j, c)) => {
+                if c != '@' {
+                    return None;
+                }
+
+                i = j;
+            }
+        }
+
+        for (j, c) in chars {
+            if is_ascii_junk_or_whitespace(c) {
+                break;
+            }
+
+            if !c.is_alphanumeric() && c != '_' {
+                return None;
+            }
+
+            i = j;
+        }
+
+        i += 1;
+
+        let text = &self.input[..i];
+        self.input = &self.input[i..];
+
+        Some(WordToken {
+            text,
+            kind: WordTokenKind::Mention,
+        })
+    }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -99,6 +143,12 @@ impl<'a> Iterator for WordTokens<'a> {
 
         if hashtag.is_some() {
             return hashtag;
+        }
+
+        let mention = self.parse_mention();
+
+        if mention.is_some() {
+            return mention;
         }
 
         let i = self
@@ -126,26 +176,34 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 mod tests {
     use super::*;
 
+    fn w(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Word,
+            text,
+        }
+    }
+
+    fn h(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Hashtag,
+            text,
+        }
+    }
+
+    fn m(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Mention,
+            text,
+        }
+    }
+
     #[test]
     fn test_word_tokens() {
-        let words = WordTokens::from("hello world #test").collect::<Vec<_>>();
+        let words = WordTokens::from("hello world #test @yomgui").collect::<Vec<_>>();
 
         assert_eq!(
             words,
-            vec![
-                WordToken {
-                    kind: WordTokenKind::Word,
-                    text: "hello"
-                },
-                WordToken {
-                    kind: WordTokenKind::Word,
-                    text: "world"
-                },
-                WordToken {
-                    kind: WordTokenKind::Hashtag,
-                    text: "#test"
-                }
-            ]
+            vec![w("hello"), w("world"), h("#test"), m("@yomgui")]
         );
     }
 }
