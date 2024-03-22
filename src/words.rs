@@ -27,6 +27,15 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
+#[inline]
+fn is_apostrophe(c: char) -> bool {
+    c == '\'' || c == '’'
+}
+
+fn is_english_contraction(text: &str) -> bool {
+    ["ll", "re", "m", "s", "ve", "d"].contains(&text.to_ascii_lowercase().as_str())
+}
+
 #[derive(PartialEq, Debug)]
 enum WordTokenKind {
     Word,
@@ -247,13 +256,31 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
-        let i = self
-            .input
-            .find(|c: char| !c.is_alphanumeric())
-            .unwrap_or(self.input.len());
+        let mut chars = self.input.char_indices();
 
-        if i == 0 {
-            let (mut i, _) = self.input.char_indices().next().unwrap();
+        let (mut i, c) = chars.next().unwrap();
+
+        // Punctuation
+        if !c.is_alphanumeric() {
+            // English contraction?
+            if is_apostrophe(c) {
+                if let Some(offset) = chars
+                    .take(3)
+                    .find(|(_, nc)| nc.is_whitespace())
+                    .map(|(o, _)| o)
+                    .or(Some(self.input.len()))
+                {
+                    if is_english_contraction(&self.input[i + 1..offset]) {
+                        let text = &self.input[..offset];
+                        self.input = &self.input[offset..];
+
+                        return Some(WordToken {
+                            text,
+                            kind: WordTokenKind::Word,
+                        });
+                    }
+                }
+            }
 
             i += 1;
 
@@ -266,6 +293,12 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        let i = self
+            .input
+            .find(|c: char| !c.is_alphanumeric())
+            .unwrap_or(self.input.len());
+
+        // Regular word
         let text = &self.input[..i];
         self.input = &self.input[i..];
 
@@ -378,6 +411,14 @@ mod tests {
         assert_eq!(
             tokens("🐱👪👪👍🏾"),
             vec![e("🐱"), e("👪"), e("👪"), e("👍🏾")]
+        );
+    }
+
+    #[test]
+    fn test_english_contractions() {
+        assert_eq!(
+            tokens("I\'ll be there."),
+            vec![w("I"), w("'ll"), w("be"), w("there"), p(".")]
         );
     }
 }
