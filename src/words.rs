@@ -34,6 +34,7 @@ enum WordTokenKind {
     Mention,
     Emoji,
     Punctuation,
+    Number,
 }
 
 #[derive(PartialEq, Debug)]
@@ -53,7 +54,7 @@ impl<'a> WordTokens<'a> {
             .trim_start_matches(|c: char| is_ascii_junk_or_whitespace(c));
     }
 
-    fn parse_hashtag<'b>(&mut self) -> Option<WordToken<'b>>
+    fn parse_hashtag<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
@@ -97,13 +98,10 @@ impl<'a> WordTokens<'a> {
         let text = &self.input[..i];
         self.input = &self.input[i..];
 
-        Some(WordToken {
-            text,
-            kind: WordTokenKind::Hashtag,
-        })
+        Some(text)
     }
 
-    fn parse_mention<'b>(&mut self) -> Option<WordToken<'b>>
+    fn parse_mention<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
@@ -138,13 +136,10 @@ impl<'a> WordTokens<'a> {
         let text = &self.input[..i];
         self.input = &self.input[i..];
 
-        Some(WordToken {
-            text,
-            kind: WordTokenKind::Mention,
-        })
+        Some(text)
     }
 
-    fn parse_emoji<'b>(&mut self) -> Option<WordToken<'b>>
+    fn parse_emoji<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
@@ -154,19 +149,63 @@ impl<'a> WordTokens<'a> {
             let text = &self.input[..i];
             self.input = &self.input[i..];
 
-            WordToken {
-                text,
-                kind: WordTokenKind::Emoji,
-            }
+            text
         })
     }
 
-    // fn parse_number<'b>(&mut self) -> Option<WordToken<'b>>
-    // where
-    //     'a: 'b,
-    // {
-    //     let chars = self.input.char_indices();
-    // }
+    fn parse_number<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        let mut chars = self.input.char_indices();
+        let mut i: usize;
+
+        match chars.next() {
+            None => return None,
+            Some((j, c1)) => {
+                if c1 == '-' {
+                    match chars.next() {
+                        None => return None,
+                        Some((k, c2)) => {
+                            if !c2.is_numeric() {
+                                return None;
+                            }
+
+                            i = k;
+                        }
+                    };
+                } else if !c1.is_numeric() {
+                    return None;
+                } else {
+                    i = j;
+                }
+            }
+        };
+
+        for (j, c) in chars {
+            if is_ascii_junk_or_whitespace(c) {
+                break;
+            }
+
+            if c == ',' || c == '.' || c == '_' {
+                i = j;
+                continue;
+            }
+
+            if !c.is_numeric() {
+                return None;
+            }
+
+            i = j;
+        }
+
+        i += 1;
+
+        let text = &self.input[..i];
+        self.input = &self.input[i..];
+
+        Some(text)
+    }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -179,22 +218,33 @@ impl<'a> Iterator for WordTokens<'a> {
             return None;
         }
 
-        let hashtag = self.parse_hashtag();
-
-        if hashtag.is_some() {
-            return hashtag;
+        if let Some(text) = self.parse_hashtag() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Hashtag,
+            });
         }
 
-        let mention = self.parse_mention();
-
-        if mention.is_some() {
-            return mention;
+        if let Some(text) = self.parse_mention() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Mention,
+            });
         }
 
-        let emoji = self.parse_emoji();
+        // NOTE: it is important to test number before emojis
+        if let Some(text) = self.parse_number() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Number,
+            });
+        }
 
-        if emoji.is_some() {
-            return emoji;
+        if let Some(text) = self.parse_emoji() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Emoji,
+            });
         }
 
         let i = self
@@ -261,6 +311,13 @@ mod tests {
         }
     }
 
+    fn n(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Number,
+            text,
+        }
+    }
+
     fn e(text: &str) -> WordToken {
         WordToken {
             kind: WordTokenKind::Emoji,
@@ -278,9 +335,10 @@ mod tests {
     #[test]
     fn test_word_tokens() {
         assert_eq!(
-            tokens("hello world #test @yomgui ⭐ @yomgui⭐"),
+            tokens("hello 2 world #test @yomgui ⭐ @yomgui⭐"),
             vec![
                 w("hello"),
+                n("2"),
                 w("world"),
                 h("#test"),
                 m("@yomgui"),
@@ -290,6 +348,14 @@ mod tests {
                 e("⭐")
             ]
         );
+    }
+
+    #[test]
+    fn test_numbers() {
+        assert_eq!(
+            tokens("2 2.5 -2 -2.5 2,5 1.2.3"),
+            vec![n("2"), n("2.5"), n("-2"), n("-2.5"), n("2,5"), n("1.2.3")]
+        )
     }
 
     #[test]
