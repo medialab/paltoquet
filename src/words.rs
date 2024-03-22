@@ -24,46 +24,36 @@ struct WordTokens<'a> {
     input: &'a str,
 }
 
+impl<'a> WordTokens<'a> {
+    fn chomp(&mut self) {
+        self.input = self
+            .input
+            .trim_start_matches(|c: char| c.is_whitespace() || is_ascii_junk(c));
+    }
+}
+
 impl<'a> Iterator for WordTokens<'a> {
     type Item = WordToken<'a>;
 
     fn next(&mut self) -> Option<Self::Item> {
+        self.chomp();
+
         if self.input.is_empty() {
             return None;
         }
 
-        let mut chars = self.input.char_indices();
+        let i = self
+            .input
+            .find(|c: char| c.is_whitespace() || is_ascii_junk(c))
+            .unwrap_or(self.input.len());
 
-        while let Some((i, c)) = chars.next() {
-            if is_ascii_junk(c) || c.is_whitespace() {
-                continue;
-            }
+        let text = &self.input[..i];
+        self.input = &self.input[i..];
 
-            // let can_be_mention = c == '@';
-            // let can_be_hashtag = c == '#' || c == '$';
-
-            let mut j = i;
-
-            while let Some((j_offset, n)) = chars.next() {
-                if is_ascii_junk(n) || n.is_whitespace() {
-                    break;
-                }
-
-                j = j_offset + 1;
-            }
-
-            let text = &self.input[i..j];
-            self.input = &self.input[j..];
-
-            if !text.is_empty() {
-                return Some(WordToken {
-                    kind: WordTokenKind::Word,
-                    text,
-                });
-            }
-        }
-
-        None
+        Some(WordToken {
+            text,
+            kind: WordTokenKind::Word,
+        })
     }
 }
 
