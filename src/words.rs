@@ -33,7 +33,7 @@ fn is_apostrophe(c: char) -> bool {
 }
 
 fn is_english_contraction(text: &str) -> bool {
-    ["ll", "re", "m", "s", "ve", "d"].contains(&text.to_ascii_lowercase().as_str())
+    ["tis", "twas", "ll", "re", "m", "s", "ve", "d"].contains(&text.to_ascii_lowercase().as_str())
 }
 
 #[derive(PartialEq, Debug)]
@@ -265,7 +265,7 @@ impl<'a> Iterator for WordTokens<'a> {
             // English contraction?
             if is_apostrophe(c) {
                 if let Some(offset) = chars
-                    .take(3)
+                    .take(5)
                     .find(|(_, nc)| nc.is_whitespace())
                     .map(|(o, _)| o)
                     .or(Some(self.input.len()))
@@ -417,8 +417,16 @@ mod tests {
     #[test]
     fn test_english_contractions() {
         assert_eq!(
-            tokens("I\'ll be there."),
-            vec![w("I"), w("'ll"), w("be"), w("there"), p(".")]
+            tokens("I\'ll be there. 'tis a"),
+            vec![
+                w("I"),
+                w("'ll"),
+                w("be"),
+                w("there"),
+                p("."),
+                w("'tis"),
+                w("a")
+            ]
         );
     }
 }
