@@ -1,3 +1,5 @@
+// TODO: offer a way to normalize emojis with trailing junk
+
 // Pointers:
 // https://github.com/medialab/xan/blob/prod/src/moonblade/parser.rs
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
@@ -6,20 +8,17 @@ use regex::Regex;
 
 lazy_static! {
     static ref EMOJI_REGEX: Regex = {
-        let mut pattern = String::from("^(?:");
-
-        let mut all_emojis = emojis::iter().collect::<Vec<_>>();
-        all_emojis.sort_by_key(|e| std::cmp::Reverse((e.as_bytes().len(), e.as_bytes())));
-
-        for emoji in all_emojis {
-            pattern.push_str(&regex::escape(emoji.as_str()));
-            pattern.push('|');
-        }
-
-        pattern.pop();
-        pattern.push(')');
-
-        Regex::new(&pattern).unwrap()
+        Regex::new(
+            "(?x)
+            ^(?:
+                # Emoji modifier sequence
+                \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
+                |
+                # Emoji with optional trailing junk and ZWJ sequence
+                \\p{Emoji}(?:\u{200d}\\p{Emoji})?\u{fe0f}?
+            )",
+        )
+        .unwrap()
     };
 }
 
@@ -61,9 +60,7 @@ impl<'a> WordTokens<'a> {
         let mut chars = self.input.char_indices();
         let mut i: usize;
 
-        let first = chars.next();
-
-        match first {
+        match chars.next() {
             None => return None,
             Some((_, c)) => {
                 if c != '#' && c != '$' {
@@ -72,9 +69,7 @@ impl<'a> WordTokens<'a> {
             }
         };
 
-        let second = chars.next();
-
-        match second {
+        match chars.next() {
             None => return None,
             Some((j, c)) => {
                 if !c.is_ascii_alphabetic() {
@@ -115,9 +110,7 @@ impl<'a> WordTokens<'a> {
         let mut chars = self.input.char_indices();
         let mut i: usize;
 
-        let first = chars.next();
-
-        match first {
+        match chars.next() {
             None => return None,
             Some((j, c)) => {
                 if c != '@' {
@@ -167,6 +160,13 @@ impl<'a> WordTokens<'a> {
             }
         })
     }
+
+    // fn parse_number<'b>(&mut self) -> Option<WordToken<'b>>
+    // where
+    //     'a: 'b,
+    // {
+    //     let chars = self.input.char_indices();
+    // }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -236,6 +236,10 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 mod tests {
     use super::*;
 
+    fn tokens(text: &str) -> Vec<WordToken> {
+        WordTokens::from(text).collect()
+    }
+
     fn w(text: &str) -> WordToken {
         WordToken {
             kind: WordTokenKind::Word,
@@ -273,10 +277,8 @@ mod tests {
 
     #[test]
     fn test_word_tokens() {
-        let words = WordTokens::from("hello world #test @yomgui ⭐ @yomgui⭐").collect::<Vec<_>>();
-
         assert_eq!(
-            words,
+            tokens("hello world #test @yomgui ⭐ @yomgui⭐"),
             vec![
                 w("hello"),
                 w("world"),
@@ -287,6 +289,29 @@ mod tests {
                 w("yomgui"),
                 e("⭐")
             ]
+        );
+    }
+
+    #[test]
+    fn test_tricky_emojis() {
+        assert_eq!(
+            tokens("'⭐️.🙏⭐️⭐️,⭐️'"),
+            vec![
+                p("'"),
+                e("⭐\u{fe0f}"),
+                p("."),
+                e("🙏"),
+                e("⭐\u{fe0f}"),
+                e("⭐\u{fe0f}"),
+                p(","),
+                e("⭐\u{fe0f}"),
+                p("'")
+            ]
+        );
+
+        assert_eq!(
+            tokens("🐱👪👪👍🏾"),
+            vec![e("🐱"), e("👪"), e("👪"), e("👍🏾")]
         );
     }
 }
