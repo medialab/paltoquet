@@ -57,6 +57,16 @@ struct WordTokens<'a> {
 }
 
 impl<'a> WordTokens<'a> {
+    fn split_at<'b>(&mut self, i: usize) -> &'b str
+    where
+        'a: 'b,
+    {
+        let text = &self.input[..i];
+        self.input = &self.input[i..];
+
+        text
+    }
+
     fn chomp(&mut self) {
         self.input = self
             .input
@@ -104,10 +114,7 @@ impl<'a> WordTokens<'a> {
 
         i += 1;
 
-        let text = &self.input[..i];
-        self.input = &self.input[i..];
-
-        Some(text)
+        Some(self.split_at(i))
     }
 
     fn parse_mention<'b>(&mut self) -> Option<&'b str>
@@ -142,10 +149,7 @@ impl<'a> WordTokens<'a> {
 
         i += 1;
 
-        let text = &self.input[..i];
-        self.input = &self.input[i..];
-
-        Some(text)
+        Some(self.split_at(i))
     }
 
     fn parse_emoji<'b>(&mut self) -> Option<&'b str>
@@ -155,10 +159,7 @@ impl<'a> WordTokens<'a> {
         EMOJI_REGEX.find(self.input).map(|m| {
             let i = m.end();
 
-            let text = &self.input[..i];
-            self.input = &self.input[i..];
-
-            text
+            self.split_at(i)
         })
     }
 
@@ -210,10 +211,7 @@ impl<'a> WordTokens<'a> {
 
         i += 1;
 
-        let text = &self.input[..i];
-        self.input = &self.input[i..];
-
-        Some(text)
+        Some(self.split_at(i))
     }
 }
 
@@ -271,11 +269,8 @@ impl<'a> Iterator for WordTokens<'a> {
                     .or(Some(self.input.len()))
                 {
                     if is_english_contraction(&self.input[i + 1..offset]) {
-                        let text = &self.input[..offset];
-                        self.input = &self.input[offset..];
-
                         return Some(WordToken {
-                            text,
+                            text: self.split_at(offset),
                             kind: WordTokenKind::Word,
                         });
                     }
@@ -284,11 +279,8 @@ impl<'a> Iterator for WordTokens<'a> {
 
             i += 1;
 
-            let text = &self.input[..i];
-            self.input = &self.input[i..];
-
             return Some(WordToken {
-                text,
+                text: self.split_at(i),
                 kind: WordTokenKind::Punctuation,
             });
         }
@@ -299,11 +291,8 @@ impl<'a> Iterator for WordTokens<'a> {
             .unwrap_or(self.input.len());
 
         // Regular word
-        let text = &self.input[..i];
-        self.input = &self.input[i..];
-
         Some(WordToken {
-            text,
+            text: self.split_at(i),
             kind: WordTokenKind::Word,
         })
     }
