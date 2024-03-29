@@ -1,7 +1,7 @@
 // TODO: offer a way to normalize emojis with trailing junk
 
 // Pointers:
-// https://github.com/medialab/xan/blob/prod/src/moonblade/parser.rs
+// https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use lazy_static::lazy_static;
 use regex::Regex;
@@ -356,8 +356,8 @@ mod tests {
 
     #[test]
     fn test_word_tokens() {
-        assert_eq!(
-            tokens("hello 2 world #test @yomgui ⭐ @yomgui⭐"),
+        let tests = vec![(
+            "hello 2 world #test @yomgui ⭐ @yomgui⭐",
             vec![
                 w("hello"),
                 n("2"),
@@ -367,9 +367,13 @@ mod tests {
                 e("⭐"),
                 p("@"),
                 w("yomgui"),
-                e("⭐")
-            ]
-        );
+                e("⭐"),
+            ],
+        )];
+
+        for (tt, expected) in tests {
+            assert_eq!(tokens(tt), expected);
+        }
     }
 
     #[test]
