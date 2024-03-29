@@ -261,6 +261,7 @@ impl<'a> Iterator for WordTokens<'a> {
         // Punctuation
         if !c.is_alphanumeric() {
             // TODO: the unwrap or should not consume more than 5
+            // TODO: factorize lookahead logic (beware, non match does not mean same thing if EOS)
 
             // English contraction?
             if is_apostrophe(c) {
@@ -440,6 +441,37 @@ mod tests {
                     w("and"),
                     w("invest"),
                     w("more"),
+                    p("."),
+                ],
+            ),
+            (
+                "hi, my name can\'t hello,",
+                vec![
+                    w("hi"),
+                    p(","),
+                    w("my"),
+                    w("name"),
+                    w("can't"),
+                    w("hello"),
+                    p(","),
+                ],
+            ),
+            (
+                "\"Hello\", Good sir (this is appaling)...",
+                vec![
+                    p("\""),
+                    w("Hello"),
+                    p("\""),
+                    p(","),
+                    w("Good"),
+                    w("sir"),
+                    p("("),
+                    w("this"),
+                    w("is"),
+                    w("appaling"),
+                    p(")"),
+                    p("."),
+                    p("."),
                     p("."),
                 ],
             ),
