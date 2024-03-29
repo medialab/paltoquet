@@ -260,23 +260,24 @@ impl<'a> Iterator for WordTokens<'a> {
 
         // Punctuation
         if !c.is_alphanumeric() {
+            // TODO: the unwrap or should not consume more than 5
+
             // English contraction?
             if is_apostrophe(c) {
-                if let Some(offset) = chars
+                let offset = chars
                     .take(5)
                     .find(|(_, nc)| nc.is_whitespace())
-                    .map(|(o, _)| o)
-                    .or(Some(self.input.len()))
-                {
-                    let word = &self.input[i + 1..offset];
+                    .map(|(j, _)| j)
+                    .unwrap_or(self.input.len());
 
-                    // E.g.: it's, aujourd'hui
-                    if is_english_contraction(word) {
-                        return Some(WordToken {
-                            text: self.split_at(offset),
-                            kind: WordTokenKind::Word,
-                        });
-                    }
+                let next_word = &self.input[i + 1..offset];
+
+                // E.g.: it's, aujourd'hui
+                if is_english_contraction(next_word) {
+                    return Some(WordToken {
+                        text: self.split_at(offset),
+                        kind: WordTokenKind::Word,
+                    });
                 }
             }
 
@@ -288,12 +289,45 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
-        let i = self
-            .input
-            .find(|c: char| !c.is_alphanumeric())
-            .unwrap_or(self.input.len());
+        let mut chars = self.input.char_indices();
+        let mut last_c_opt: Option<char> = None;
 
         // Regular word
+        let i = chars
+            .find(|(j, c)| {
+                if !c.is_alphanumeric() {
+                    match (is_apostrophe(*c), last_c_opt) {
+                        (true, Some(last_c)) => {
+                            // NOTE: here we need to look ahead for aujourd'hui, can't etc.
+                            let lookead = &self.input[j + 1..];
+
+                            let offset = lookead
+                                .char_indices()
+                                .take(4)
+                                .find(|(_, nc)| !nc.is_alphanumeric())
+                                .map(|(k, _)| k)
+                                .unwrap_or(lookead.len());
+
+                            let next_word = &lookead[..offset];
+
+                            if last_c == 'n' && next_word == "t" {
+                                false
+                            } else if next_word == "hui" {
+                                false
+                            } else {
+                                true
+                            }
+                        }
+                        _ => true,
+                    }
+                } else {
+                    last_c_opt = Some(*c);
+                    false
+                }
+            })
+            .map(|(j, _)| j)
+            .unwrap_or(self.input.len());
+
         Some(WordToken {
             text: self.split_at(i),
             kind: WordTokenKind::Word,
@@ -463,8 +497,11 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_cant_aujourdhui() {
-    //     assert_eq!(tokens("Aujourd'hui."), vec![w("Aujourd'hui"), p(".")]);
-    // }
+    #[test]
+    fn test_cant_aujourdhui() {
+        assert_eq!(
+            tokens("I can't aujourd'hui."),
+            vec![w("I"), w("can't"), w("aujourd'hui"), p(".")]
+        );
+    }
 }
