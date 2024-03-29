@@ -268,7 +268,10 @@ impl<'a> Iterator for WordTokens<'a> {
                     .map(|(o, _)| o)
                     .or(Some(self.input.len()))
                 {
-                    if is_english_contraction(&self.input[i + 1..offset]) {
+                    let word = &self.input[i + 1..offset];
+
+                    // E.g.: it's, aujourd'hui
+                    if is_english_contraction(word) {
                         return Some(WordToken {
                             text: self.split_at(offset),
                             kind: WordTokenKind::Word,
@@ -356,20 +359,57 @@ mod tests {
 
     #[test]
     fn test_word_tokens() {
-        let tests = vec![(
-            "hello 2 world #test @yomgui ⭐ @yomgui⭐",
-            vec![
-                w("hello"),
-                n("2"),
-                w("world"),
-                h("#test"),
-                m("@yomgui"),
-                e("⭐"),
-                p("@"),
-                w("yomgui"),
-                e("⭐"),
-            ],
-        )];
+        let tests = vec![
+            (
+                "hello 2 world #test @yomgui ⭐ @yomgui⭐",
+                vec![
+                    w("hello"),
+                    n("2"),
+                    w("world"),
+                    h("#test"),
+                    m("@yomgui"),
+                    e("⭐"),
+                    p("@"),
+                    w("yomgui"),
+                    e("⭐"),
+                ],
+            ),
+            (
+                "Good muffins cost $3.88\nin New York.  Please buy me\ntwo of them.\nThanks.",
+                vec![
+                    w("Good"),
+                    w("muffins"),
+                    w("cost"),
+                    p("$"),
+                    n("3.88"),
+                    w("in"),
+                    w("New"),
+                    w("York"),
+                    p("."),
+                    w("Please"),
+                    w("buy"),
+                    w("me"),
+                    w("two"),
+                    w("of"),
+                    w("them"),
+                    p("."),
+                    w("Thanks"),
+                    p("."),
+                ],
+            ),
+            (
+                "They\'ll save and invest more.",
+                vec![
+                    w("They"),
+                    w("'ll"),
+                    w("save"),
+                    w("and"),
+                    w("invest"),
+                    w("more"),
+                    p("."),
+                ],
+            ),
+        ];
 
         for (tt, expected) in tests {
             assert_eq!(tokens(tt), expected);
@@ -422,4 +462,9 @@ mod tests {
             ]
         );
     }
+
+    // #[test]
+    // fn test_cant_aujourdhui() {
+    //     assert_eq!(tokens("Aujourd'hui."), vec![w("Aujourd'hui"), p(".")]);
+    // }
 }
