@@ -20,6 +20,9 @@ lazy_static! {
         )
         .unwrap()
     };
+    static ref CONSONANT_REGEX: Regex = {
+        Regex::new("^[^aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœAÁÀÂÄĄÅOÓÔØEÉÈËÊĘIİÍÏÎYŸUÚÙÛÜÆŒ]").unwrap()
+    };
 }
 
 #[inline]
@@ -34,6 +37,10 @@ fn is_apostrophe(c: char) -> bool {
 
 fn is_english_contraction(text: &str) -> bool {
     ["tis", "twas", "ll", "re", "m", "s", "ve", "d"].contains(&text.to_ascii_lowercase().as_str())
+}
+
+fn is_consonant(text: &str) -> bool {
+    CONSONANT_REGEX.is_match(text)
 }
 
 #[derive(PartialEq, Debug)]
@@ -271,7 +278,7 @@ impl<'a> Iterator for WordTokens<'a> {
                     .map(|(j, _)| j)
                     .unwrap_or(self.input.len());
 
-                let next_word = &self.input[i + 1..offset];
+                let next_word = &self.input[i + c.len_utf8()..offset];
 
                 // E.g.: it's, aujourd'hui
                 if is_english_contraction(next_word) {
@@ -290,30 +297,45 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        // TODO: move english contractions to this clause
+
+        // Article with apostrophe in roman languages
+        if is_consonant(&self.input[i..]) {
+            match (chars.next(), chars.next()) {
+                (Some((_, c2)), Some((i3, _)))
+                    if is_apostrophe(c2) && !is_consonant(&self.input[i3..]) =>
+                {
+                    return Some(WordToken {
+                        text: self.split_at(i3),
+                        kind: WordTokenKind::Word,
+                    });
+                }
+                _ => (),
+            }
+        }
+
         let mut chars = self.input.char_indices();
         let mut last_c_opt: Option<char> = None;
 
         // Regular word
         let i = chars
-            .find(|(j, c)| {
-                if !c.is_alphanumeric() {
-                    match (is_apostrophe(*c), last_c_opt) {
+            .find(|(j, c2)| {
+                if !c2.is_alphanumeric() {
+                    match (is_apostrophe(*c2), last_c_opt) {
                         (true, Some(last_c)) => {
                             // NOTE: here we need to look ahead for aujourd'hui, can't etc.
-                            let lookead = &self.input[j + 1..];
+                            let lookead = &self.input[j + c2.len_utf8()..];
 
                             let offset = lookead
                                 .char_indices()
                                 .take(4)
-                                .find(|(_, nc)| !nc.is_alphanumeric())
+                                .find(|(_, c3)| !c3.is_alphanumeric())
                                 .map(|(k, _)| k)
                                 .unwrap_or(lookead.len());
 
                             let next_word = &lookead[..offset];
 
-                            if last_c == 'n' && next_word == "t" {
-                                false
-                            } else if next_word == "hui" {
+                            if (last_c == 'n' && next_word == "t") || next_word == "hui" {
                                 false
                             } else {
                                 true
@@ -322,7 +344,7 @@ impl<'a> Iterator for WordTokens<'a> {
                         _ => true,
                     }
                 } else {
-                    last_c_opt = Some(*c);
+                    last_c_opt = Some(*c2);
                     false
                 }
             })
@@ -473,6 +495,21 @@ mod tests {
                     p("."),
                     p("."),
                     p("."),
+                ],
+            ),
+            (
+                "L'amour de l’amour naît pendant l'été!",
+                vec![
+                    w("L'"),
+                    w("amour"),
+                    w("de"),
+                    w("l’"),
+                    w("amour"),
+                    w("naît"),
+                    w("pendant"),
+                    w("l'"),
+                    w("été"),
+                    p("!"),
                 ],
             ),
         ];
