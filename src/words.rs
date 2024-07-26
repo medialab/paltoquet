@@ -30,6 +30,12 @@ lazy_static! {
     static ref ABBR_REGEX: Regex = {
         Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
     };
+    static ref URL_REGEX: Regex = {
+        Regex::new("(?i)^https?://\\S+").unwrap()
+    };
+    static ref EMAIL_REGEX: Regex = {
+        Regex::new("^[A-Za-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[A-Za-z]{1,8}\\.[A-Za-z\\.]{1,16}").unwrap()
+    };
 }
 
 #[inline]
@@ -69,6 +75,8 @@ pub enum WordTokenKind {
     Emoji,
     Punctuation,
     Number,
+    Url,
+    Email,
 }
 
 #[derive(PartialEq, Debug)]
@@ -242,6 +250,20 @@ impl<'a> WordTokens<'a> {
         }
     }
 
+    fn parse_url<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        URL_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+    }
+
+    fn parse_email<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        EMAIL_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+    }
+
     fn parse_number<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
@@ -321,6 +343,20 @@ impl<'a> Iterator for WordTokens<'a> {
 
         if self.input.is_empty() {
             return None;
+        }
+
+        if let Some(text) = self.parse_url() {
+            return Some(WordToken {
+                kind: WordTokenKind::Url,
+                text,
+            });
+        }
+
+        if let Some(text) = self.parse_email() {
+            return Some(WordToken {
+                kind: WordTokenKind::Email,
+                text,
+            });
         }
 
         if let Some(text) = self.parse_abbr() {
@@ -507,6 +543,20 @@ mod tests {
     fn p(text: &str) -> WordToken {
         WordToken {
             kind: WordTokenKind::Punctuation,
+            text,
+        }
+    }
+
+    fn u(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Url,
+            text,
+        }
+    }
+
+    fn email(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Email,
             text,
         }
     }
@@ -853,6 +903,58 @@ mod tests {
                     w("a"),
                     w("day"),
                     p("!")
+                ]
+            ),
+            (
+                "L'#amour appartient à l'@ange!",
+                vec![
+                    w("L'"),
+                    h("#amour"),
+                    w("appartient"),
+                    w("à"),
+                    w("l'"),
+                    m("@ange"),
+                    p("!")
+                ]
+            ),
+            (
+                "La température est de -23. Il est -sûr que cela va arriver.",
+                vec![
+                    w("La"),
+                    w("température"),
+                    w("est"),
+                    w("de"),
+                    n("-23"),
+                    p("."),
+                    w("Il"),
+                    w("est"),
+                    p("-"),
+                    w("sûr"),
+                    w("que"),
+                    w("cela"),
+                    w("va"),
+                    w("arriver"),
+                    p(".")
+                ]
+            ),
+            (
+                "One url: https://lemonde.fr/test another one http://www.lemonde.fr/protect.html",
+                vec![
+                    w("One"),
+                    w("url"),
+                    p(":"),
+                    u("https://lemonde.fr/test"),
+                    w("another"),
+                    w("one"),
+                    u("http://www.lemonde.fr/protect.html")
+                ]
+            ),
+            (
+                "email:john@whatever.net",
+                vec![
+                    w("email"),
+                    p(":"),
+                    email("john@whatever.net")
                 ]
             )
         ];
