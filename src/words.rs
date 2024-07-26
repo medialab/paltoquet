@@ -22,12 +22,10 @@
 // Pointers:
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
-use std::str::CharIndices;
-
 use lazy_static::lazy_static;
 use regex::Regex;
 
-static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœAÁÀÂÄĄÅOÓÔØEÉÈËÊĘIİÍÏÎYŸUÚÙÛÜÆŒ";
+static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
 lazy_static! {
     // TODO: consider Emoji_Presentation at some point
@@ -49,6 +47,20 @@ lazy_static! {
     };
     static ref CONSONANT_REGEX: Regex = {
         Regex::new(&format!("^[^{}]", VOWELS)).unwrap()
+    };
+    static ref APOSTROPHE_REGEXES: [Regex; 5] = {
+        [
+            // 'nt 'hui
+            Regex::new("(?i)^(aujourd['’]hui|\\p{Alpha}+n['’]t)").unwrap(),
+            // English shenanigans
+            Regex::new("(?i)^(['’](?:twas|tis|ll|re|ve|[dms]))\\b").unwrap(),
+            // Roman articles
+            Regex::new(&format!("(?i)^([^{v}]['’])([{v}h#@]\\p{{Alpha}}*)\\b", v=VOWELS)).unwrap(),
+            // English contractions
+            Regex::new("(?i)^(\\p{Alpha})['’](?:ll|re|ve|[dms])\\b").unwrap(),
+            // Names like O'Hara and N'diaye
+            Regex::new(&format!("(?i)^((?:[^{v}]|O)['’]\\p{{Alpha}}+)\\b", v=VOWELS)).unwrap()
+        ]
     };
     static ref ABBR_REGEX: Regex = {
         Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
@@ -75,25 +87,6 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
 #[inline]
 fn is_apostrophe(c: char) -> bool {
     c == '\'' || c == '’'
-}
-
-fn is_english_contraction(text: &str) -> bool {
-    ["tis", "twas", "ll", "re", "m", "s", "ve", "d"].contains(&text.to_ascii_lowercase().as_str())
-}
-
-fn is_consonant(text: &str) -> bool {
-    CONSONANT_REGEX.is_match(text)
-}
-
-fn lookahead_chars<F>(chars: CharIndices, size: usize, max: usize, predicate: F) -> usize
-where
-    F: Fn(char) -> bool,
-{
-    chars
-        .take(size)
-        .find(|(_, nc)| predicate(*nc))
-        .map(|(j, _)| j)
-        .unwrap_or(max)
 }
 
 #[derive(PartialEq, Debug)]
@@ -385,6 +378,19 @@ impl<'a> WordTokens<'a> {
             .find(self.input)
             .map(|m| self.split_at(m.end()))
     }
+
+    fn parse_apostrophe_issues<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        for pattern in APOSTROPHE_REGEXES.iter() {
+            if let Some(caps) = pattern.captures(self.input) {
+                return Some(self.split_at(caps.get(1).unwrap().end()));
+            }
+        }
+
+        None
+    }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -455,99 +461,27 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        if let Some(text) = self.parse_apostrophe_issues() {
+            return Some(WordToken::word(text));
+        }
+
         if let Some(text) = self.parse_compound_word() {
             return Some(WordToken::word(text));
         }
 
         let mut chars = self.input.char_indices();
+        let (i, c) = chars.next().unwrap();
 
-        let (mut i, c) = chars.next().unwrap();
-
-        // TODO: convert complexities below as regexes
-
-        // Punctuation
         if !c.is_alphanumeric() {
-            // English contraction?
-            if is_apostrophe(c) {
-                let offset =
-                    lookahead_chars(chars, 5, self.input.len(), |nc| !nc.is_alphanumeric());
-                let next_word = &self.input[i + c.len_utf8()..offset];
-
-                // E.g.: it's
-                if is_english_contraction(next_word) {
-                    return Some(WordToken::word(self.split_at(offset)));
-                }
-            }
-
-            i += 1;
-
             return Some(WordToken {
-                text: self.split_at(i),
                 kind: WordTokenKind::Punctuation,
+                text: self.split_at(i + c.len_utf8()),
             });
         }
 
-        let mut further_offset: Option<usize> = None;
-
-        // Testing various problematic things
-        if is_consonant(&self.input[i..]) || c == 'O' || c == 'o' {
-            if let (Some((_, c2)), Some((i3, c3))) = (chars.next(), chars.next()) {
-                if is_apostrophe(c2) {
-                    if is_consonant(&self.input[i3..]) {
-                        if c3 == 'h' {
-                            if c == 'O' || c == 'o' {
-                                // Irish
-                                further_offset = Some(i3);
-                            } else {
-                                // Article
-                                return Some(WordToken::word(self.split_at(i3)));
-                            }
-                        } else {
-                            // N'diaye, M'Leod etc.
-                            further_offset = Some(i3);
-                        }
-                    } else {
-                        // Article
-                        return Some(WordToken::word(self.split_at(i3)));
-                    }
-                }
-            }
-        }
-
-        let mut chars = self.input.char_indices();
-        let mut last_c_opt: Option<char> = None;
-
-        // Regular word
         let i = chars
-            .find(|(j, c2)| {
-                if let Some(bound) = further_offset {
-                    if j < &bound {
-                        return false;
-                    }
-                }
-
-                if !c2.is_alphanumeric() {
-                    match (is_apostrophe(*c2), last_c_opt) {
-                        (true, Some(last_c)) => {
-                            // NOTE: here we need to look ahead for aujourd'hui, can't etc.
-                            let lookead = &self.input[j + c2.len_utf8()..];
-                            let offset =
-                                lookahead_chars(lookead.char_indices(), 4, lookead.len(), |c3| {
-                                    !c3.is_alphanumeric()
-                                });
-
-                            let next_word = &lookead[..offset];
-
-                            !((last_c == 'n' && next_word == "t") || next_word == "hui")
-                        }
-                        _ => true,
-                    }
-                } else {
-                    last_c_opt = Some(*c2);
-                    false
-                }
-            })
-            .map(|(j, _)| j)
+            .find(|(_, c)| !c.is_alphanumeric())
+            .map(|t| t.0)
             .unwrap_or(self.input.len());
 
         Some(WordToken::word(self.split_at(i)))
