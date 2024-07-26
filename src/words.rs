@@ -11,11 +11,14 @@ lazy_static! {
         Regex::new(
             "(?x)
             ^(?:
+                # Emoji ZWJ sequence with optional trailing junk
+                \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
+                |
                 # Emoji modifier sequence
                 \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
                 |
-                # Emoji with optional trailing junk and ZWJ sequence
-                \\p{Emoji}(?:\u{200d}\\p{Emoji})?\u{fe0f}?
+                # Emoji with optional trailing junk
+                \\p{Emoji}\u{fe0f}?
             )",
         )
         .unwrap()
@@ -529,6 +532,55 @@ mod tests {
                     p("!"),
                 ],
             ),
+            (
+                "This is some it's sentence. This is incredible \"ok\" (very) $2,4 2.4 Aujourd'hui This, is very cruel",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("some"),
+                    w("it"),
+                    w("'s"),
+                    w("sentence"),
+                    p("."),
+                    w("This"),
+                    w("is"),
+                    w("incredible"),
+                    p("\""),
+                    w("ok"),
+                    p("\""),
+                    p("("),
+                    w("very"),
+                    p(")"),
+                    p("$"),
+                    n("2,4"),
+                    n("2.4"),
+                    w("Aujourd'hui"),
+                    w("This"),
+                    p(","),
+                    w("is"),
+                    w("very"),
+                    w("cruel")
+                ]
+            ),
+            (
+                "This is a very nice cat 🐱! No? Family: 👨‍👨‍👧‍👧!",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("a"),
+                    w("very"),
+                    w("nice"),
+                    w("cat"),
+                    e("🐱"),
+                    p("!"),
+                    w("No"),
+                    p("?"),
+                    w("Family"),
+                    p(":"),
+                    e("👨‍👨‍👧‍👧"),
+                    p("!")
+                ]
+            )
         ];
 
         for (tt, expected) in tests {
