@@ -1,9 +1,16 @@
 [package]
 name = "paltoquet"
 description = "A library of rule-based general-purpose tokenizers."
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "MIT"
+documentation = "https://github.com/medialab/paltoquet#readme"
+homepage = "https://github.com/medialab/paltoquet"
+repository = "https://github.com/medialab/paltoquet"
+readme = "README.md"
+authors = [
+  "Guillaume Plique <guillaume.plique@sciencespo.fr>"
+]
 
 [dependencies]
 lazy_static = "1.4.0"
