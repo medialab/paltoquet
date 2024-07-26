@@ -193,6 +193,40 @@ impl<'a> WordTokens<'a> {
         })
     }
 
+    fn parse_acronym<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        let mut chars = self.input.char_indices();
+
+        let mut end: usize = 0;
+
+        loop {
+            if let Some((_, c1)) = chars.next() {
+                if c1.is_uppercase() {
+                    if let Some((i2, c2)) = chars.next() {
+                        if c2 == '.' {
+                            end = i2 + 1;
+                            continue;
+                        }
+                    }
+
+                    break;
+                }
+
+                break;
+            }
+
+            break;
+        }
+
+        if end > 0 {
+            Some(self.split_at(end))
+        } else {
+            None
+        }
+    }
+
     fn parse_number<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
@@ -253,6 +287,13 @@ impl<'a> Iterator for WordTokens<'a> {
 
         if self.input.is_empty() {
             return None;
+        }
+
+        if let Some(text) = self.parse_acronym() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Word,
+            });
         }
 
         if let Some(text) = self.parse_hashtag() {
@@ -579,6 +620,45 @@ mod tests {
                     p(":"),
                     e("👨‍👨‍👧‍👧"),
                     p("!")
+                ]
+            ),
+            (
+                "Control:\x01\t\t\n ok? Wo\x10rd",
+                vec![
+                    w("Control"),
+                    p(":"),
+                    w("ok"),
+                    p("?"),
+                    w("Wo"),
+                    w("rd")
+                ]
+            ),
+            (
+                "This is.Another",
+                vec![
+                    w("This"),
+                    w("is"),
+                    p("."),
+                    w("Another")
+                ]
+            ),
+            (
+                "",
+                vec![]
+            ),
+            (
+                "hello world",
+                vec![w("hello"), w("world")]
+            ),
+            (
+                "O.N.U. La vie.est foutue",
+                vec![
+                    w("O.N.U."),
+                    w("La"),
+                    w("vie"),
+                    p("."),
+                    w("est"),
+                    w("foutue")
                 ]
             )
         ];

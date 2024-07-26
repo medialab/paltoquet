@@ -9,7 +9,7 @@ pub trait Tokenize {
     fn words(&self) -> WordTokens;
 }
 
-impl<'a> Tokenize for str {
+impl Tokenize for str {
     fn hashtag_parts(&self) -> Option<HashtagParts> {
         HashtagParts::try_from(self).ok()
     }
