@@ -189,8 +189,10 @@ impl<'a> WordTokens<'a> {
     {
         // Fun fact, # is an emoji...
         // Fun fact, numbers also...
-        if let Some('#') = self.input.chars().next() {
-            return None;
+        if let Some(c) = self.input.chars().next() {
+            if c == '#' || c.is_ascii_digit() {
+                return None;
+            }
         }
 
         EMOJI_REGEX.find(self.input).map(|m| {
@@ -263,12 +265,25 @@ impl<'a> WordTokens<'a> {
             }
         };
 
+        let mut decimal_separator_pos: Option<usize> = None;
+
         for (j, c) in chars {
             if is_ascii_junk_or_whitespace(c) || is_apostrophe(c) {
                 break;
             }
 
-            if c == ',' || c == '.' || c == '_' {
+            if c == ',' || c == '.' {
+                if decimal_separator_pos.is_some() {
+                    break;
+                }
+
+                i = j;
+
+                decimal_separator_pos = Some(j);
+                continue;
+            }
+
+            if c == '_' {
                 i = j;
                 continue;
             }
@@ -278,6 +293,12 @@ impl<'a> WordTokens<'a> {
             }
 
             i = j;
+        }
+
+        if let Some(p) = decimal_separator_pos {
+            if i == p {
+                return Some(self.split_at(i));
+            }
         }
 
         i += 1;
@@ -799,6 +820,28 @@ mod tests {
                     w("l'"),
                     w("herbe")
                 ]
+            ),
+            (
+                "4.5.stop",
+                vec![
+                    n("4.5"),
+                    p("."),
+                    w("stop")
+                ]
+            ),
+            (
+                "1. Whatever, 2. something else?",
+                vec![
+                    n("1"),
+                    p("."),
+                    w("Whatever"),
+                    p(","),
+                    n("2"),
+                    p("."),
+                    w("something"),
+                    w("else"),
+                    p("?")
+                ]
             )
         ];
 
@@ -811,7 +854,16 @@ mod tests {
     fn test_numbers() {
         assert_eq!(
             tokens("2 2.5 -2 -2.5 2,5 1.2.3"),
-            vec![n("2"), n("2.5"), n("-2"), n("-2.5"), n("2,5"), n("1.2.3")]
+            vec![
+                n("2"),
+                n("2.5"),
+                n("-2"),
+                n("-2.5"),
+                n("2,5"),
+                n("1.2"),
+                p("."),
+                n("3")
+            ]
         )
     }
 
