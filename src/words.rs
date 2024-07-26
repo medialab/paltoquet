@@ -131,7 +131,7 @@ impl<'a> WordTokens<'a> {
         };
 
         for (j, c) in chars {
-            if is_ascii_junk_or_whitespace(c) {
+            if is_ascii_junk_or_whitespace(c) || c.is_ascii_punctuation() {
                 break;
             }
 
@@ -166,7 +166,7 @@ impl<'a> WordTokens<'a> {
         }
 
         for (j, c) in chars {
-            if is_ascii_junk_or_whitespace(c) {
+            if is_ascii_junk_or_whitespace(c) || c.is_ascii_punctuation() {
                 break;
             }
 
@@ -186,6 +186,12 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
+        // Fun fact, # is an emoji...
+        // Fun fact, numbers also...
+        if let Some('#') = self.input.chars().next() {
+            return None;
+        }
+
         EMOJI_REGEX.find(self.input).map(|m| {
             let i = m.end();
 
@@ -515,6 +521,10 @@ mod tests {
                 ],
             ),
             (
+                "One #hash.",
+                vec![w("One"), h("#hash"), p(".")]
+            ),
+            (
                 "hi, my name can\'t hello,",
                 vec![
                     w("hi"),
@@ -659,6 +669,33 @@ mod tests {
                     p("."),
                     w("est"),
                     w("foutue")
+                ]
+            ),
+            (
+                "Les É.U. sont nuls.",
+                vec![
+                    w("Les"),
+                    w("É.U."),
+                    w("sont"),
+                    w("nuls"),
+                    p(".")
+                ]
+            ),
+            (
+                "@start/over #123 This is so #javascript @Yomguithereal! $cash",
+                vec![
+                    m("@start"),
+                    p("/"),
+                    w("over"),
+                    p("#"),
+                    n("123"),
+                    w("This"),
+                    w("is"),
+                    w("so"),
+                    h("#javascript"),
+                    m("@Yomguithereal"),
+                    p("!"),
+                    h("$cash")
                 ]
             )
         ];

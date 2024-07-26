@@ -26,7 +26,7 @@ impl<'a> TryFrom<&'a str> for HashtagParts<'a> {
 
         match chars.next() {
             None => return Err(()),
-            Some((_, c)) if c != '#' => return Err(()),
+            Some((_, c)) if c != '#' && c != '$' => return Err(()),
             _ => (),
         };
 
