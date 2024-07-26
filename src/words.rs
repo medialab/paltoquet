@@ -33,6 +33,9 @@ lazy_static! {
         Regex::new(
             "(?x)
             ^(?:
+                # Regional indicators
+                \\p{Regional_indicator}+
+                |
                 # Emoji ZWJ sequence with optional trailing junk
                 \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
                 |
@@ -157,7 +160,7 @@ impl<'a> WordTokens<'a> {
         match chars.next() {
             None => return None,
             Some((j, c)) => {
-                if !c.is_ascii_alphabetic() {
+                if !c.is_alphabetic() {
                     return None;
                 }
 
@@ -170,7 +173,7 @@ impl<'a> WordTokens<'a> {
                 break;
             }
 
-            if !c.is_ascii_alphanumeric() {
+            if !c.is_alphanumeric() {
                 return None;
             }
 
@@ -201,11 +204,16 @@ impl<'a> WordTokens<'a> {
         }
 
         for (j, c) in chars {
+            if c == '_' {
+                i = j;
+                continue;
+            }
+
             if is_ascii_junk_or_whitespace(c) || c.is_ascii_punctuation() {
                 break;
             }
 
-            if !c.is_alphanumeric() && c != '_' {
+            if !c.is_alphanumeric() {
                 return None;
             }
 
@@ -1114,6 +1122,163 @@ mod tests {
                     w("l'"),
                     w("ivresse"),
                     p("!")
+                ]
+            ),
+            (
+                "4.5...",
+                vec![
+                    n("4.5"),
+                    p("."),
+                    p("."),
+                    p(".")
+                ]
+            ),
+            (
+                "Ça fait plaise d’être né en 98 ça fait on a connu les 2 étoiles 🙏⭐️⭐️",
+                vec![
+                    w("Ça"),
+                    w("fait"),
+                    w("plaise"),
+                    w("d’"),
+                    w("être"),
+                    w("né"),
+                    w("en"),
+                    n("98"),
+                    w("ça"),
+                    w("fait"),
+                    w("on"),
+                    w("a"),
+                    w("connu"),
+                    w("les"),
+                    n("2"),
+                    w("étoiles"),
+                    e("🙏"),
+                    e("⭐️"),
+                    e("⭐️")
+                ]
+            ),
+            (
+                "PUTAIN CHAMPION JE VOUS AIMES PLUS QUE TOUT⚽️⚽️🤩🇫🇷#ÉpopéeRusse",
+                vec![
+                    w("PUTAIN"),
+                    w("CHAMPION"),
+                    w("JE"),
+                    w("VOUS"),
+                    w("AIMES"),
+                    w("PLUS"),
+                    w("QUE"),
+                    w("TOUT"),
+                    e("⚽️"),
+                    e("⚽️"),
+                    e("🤩"),
+                    e("🇫🇷"),
+                    h("#ÉpopéeRusse")
+                ]
+            ),
+            (
+                "Ce soir je suis au calme devant ma tv, et je réalise que PUTAIN ON CHAMPIONS DU MONDE. ⭐️🇫🇷⭐️  #ÉpopéeRusse",
+                vec![
+                    w("Ce"),
+                    w("soir"),
+                    w("je"),
+                    w("suis"),
+                    w("au"),
+                    w("calme"),
+                    w("devant"),
+                    w("ma"),
+                    w("tv"),
+                    p(","),
+                    w("et"),
+                    w("je"),
+                    w("réalise"),
+                    w("que"),
+                    w("PUTAIN"),
+                    w("ON"),
+                    w("CHAMPIONS"),
+                    w("DU"),
+                    w("MONDE"),
+                    p("."),
+                    e("⭐️"),
+                    e("🇫🇷"),
+                    e("⭐️"),
+                    h("#ÉpopéeRusse")
+                ]
+            ),
+            (
+                "Test OF.",
+                vec![w("Test"), w("OF"), p(".")]
+            ),
+            (
+                "@ThibautLe_Gal @RemyGudin @GenerationsMvt @EELV Jadot désigné tête de liste par EELV. Pas de liste commune.",
+                vec![
+                    m("@ThibautLe_Gal"),
+                    m("@RemyGudin"),
+                    m("@GenerationsMvt"),
+                    m("@EELV"),
+                    w("Jadot"),
+                    w("désigné"),
+                    w("tête"),
+                    w("de"),
+                    w("liste"),
+                    w("par"),
+                    w("EELV"),
+                    p("."),
+                    w("Pas"),
+                    w("de"),
+                    w("liste"),
+                    w("commune"),
+                    p(".")
+                ]
+            ),
+            (
+                "Le Fonds pour L'Oréal et l’Industrie et l’Innovation d’Australie",
+                vec![
+                    w("Le"),
+                    w("Fonds"),
+                    w("pour"),
+                    w("L'"),
+                    w("Oréal"),
+                    w("et"),
+                    w("l’"),
+                    w("Industrie"),
+                    w("et"),
+                    w("l’"),
+                    w("Innovation"),
+                    w("d’"),
+                    w("Australie")
+                ]
+            ),
+            (
+                "🙏,🙏, ,🙏,,,🙏",
+                vec![
+                   e("🙏"),
+                   p(","),
+                   e("🙏"),
+                   p(","),
+                   p(","),
+                   e("🙏"),
+                   p(","),
+                   p(","),
+                   p(","),
+                   e("🙏")
+                ]
+            ),
+            (
+                ".@f_i_t_s_l_h: hello",
+                vec![
+                    p("."),
+                    m("@f_i_t_s_l_h"),
+                    p(":"),
+                    w("hello")
+                ]
+            ),
+            (
+                "facturé €4 Millions",
+                vec![
+                    w("facturé"),
+                    p("€"),
+                    n("4"),
+                    w("Millions")
                 ]
             )
         ];
