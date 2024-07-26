@@ -1,8 +1,8 @@
-// TODO: offer a way to normalize emojis with trailing junk
-
 // Pointers:
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
+use std::str::CharIndices;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -41,6 +41,17 @@ fn is_english_contraction(text: &str) -> bool {
 
 fn is_consonant(text: &str) -> bool {
     CONSONANT_REGEX.is_match(text)
+}
+
+fn lookahead_chars<F>(chars: CharIndices, size: usize, max: usize, predicate: F) -> usize
+where
+    F: Fn(char) -> bool,
+{
+    chars
+        .take(size)
+        .find(|(_, nc)| predicate(*nc))
+        .map(|(j, _)| j)
+        .unwrap_or(max)
 }
 
 #[derive(PartialEq, Debug)]
@@ -267,20 +278,12 @@ impl<'a> Iterator for WordTokens<'a> {
 
         // Punctuation
         if !c.is_alphanumeric() {
-            // TODO: the unwrap or should not consume more than 5
-            // TODO: factorize lookahead logic (beware, non match does not mean same thing if EOS)
-
             // English contraction?
             if is_apostrophe(c) {
-                let offset = chars
-                    .take(5)
-                    .find(|(_, nc)| nc.is_whitespace())
-                    .map(|(j, _)| j)
-                    .unwrap_or(self.input.len());
-
+                let offset = lookahead_chars(chars, 5, self.input.len(), char::is_whitespace);
                 let next_word = &self.input[i + c.len_utf8()..offset];
 
-                // E.g.: it's, aujourd'hui
+                // E.g.: it's
                 if is_english_contraction(next_word) {
                     return Some(WordToken {
                         text: self.split_at(offset),
@@ -325,13 +328,10 @@ impl<'a> Iterator for WordTokens<'a> {
                         (true, Some(last_c)) => {
                             // NOTE: here we need to look ahead for aujourd'hui, can't etc.
                             let lookead = &self.input[j + c2.len_utf8()..];
-
-                            let offset = lookead
-                                .char_indices()
-                                .take(4)
-                                .find(|(_, c3)| !c3.is_alphanumeric())
-                                .map(|(k, _)| k)
-                                .unwrap_or(lookead.len());
+                            let offset =
+                                lookahead_chars(lookead.char_indices(), 4, lookead.len(), |c3| {
+                                    !c3.is_alphanumeric()
+                                });
 
                             let next_word = &lookead[..offset];
 
