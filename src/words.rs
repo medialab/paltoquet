@@ -31,10 +31,13 @@ lazy_static! {
         Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
     };
     static ref URL_REGEX: Regex = {
-        Regex::new("(?i)^https?://\\S+").unwrap()
+        Regex::new("(?i)^https?://[^\\s,;]+").unwrap()
     };
     static ref EMAIL_REGEX: Regex = {
         Regex::new("^[A-Za-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[A-Za-z]{1,8}\\.[A-Za-z\\.]{1,16}").unwrap()
+    };
+    static ref SMILEY_REGEX: Regex = {
+        Regex::new("^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)").unwrap()
     };
 }
 
@@ -77,6 +80,7 @@ pub enum WordTokenKind {
     Number,
     Url,
     Email,
+    Smiley,
 }
 
 #[derive(PartialEq, Debug)]
@@ -189,6 +193,10 @@ impl<'a> WordTokens<'a> {
             i = j;
         }
 
+        if i == 0 {
+            return None;
+        }
+
         i += 1;
 
         Some(self.split_at(i))
@@ -214,6 +222,15 @@ impl<'a> WordTokens<'a> {
         'a: 'b,
     {
         ABBR_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+    }
+
+    fn parse_smiley<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        SMILEY_REGEX
+            .find(self.input)
+            .map(|m| self.split_at(m.end()))
     }
 
     fn parse_acronym<'b>(&mut self) -> Option<&'b str>
@@ -396,6 +413,13 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        if let Some(text) = self.parse_smiley() {
+            return Some(WordToken {
+                text,
+                kind: WordTokenKind::Smiley,
+            });
+        }
+
         let mut chars = self.input.char_indices();
 
         let (mut i, c) = chars.next().unwrap();
@@ -557,6 +581,13 @@ mod tests {
     fn email(text: &str) -> WordToken {
         WordToken {
             kind: WordTokenKind::Email,
+            text,
+        }
+    }
+
+    fn s(text: &str) -> WordToken {
+        WordToken {
+            kind: WordTokenKind::Smiley,
             text,
         }
     }
@@ -955,6 +986,79 @@ mod tests {
                     w("email"),
                     p(":"),
                     email("john@whatever.net")
+                ]
+            ),
+            (
+                "Checkout this ----> https://www.facebook.com, <--",
+                vec![
+                    w("Checkout"),
+                    w("this"),
+                    s("---->"),
+                    u("https://www.facebook.com"),
+                    p(","),
+                    s("<--")
+                ]
+            ),
+            (
+                "Love you :). Bye <3",
+                vec![
+                    w("Love"),
+                    w("you"),
+                    s(":)"),
+                    p("."),
+                    w("Bye"),
+                    s("<3")
+                ]
+            ),
+            (
+                "This is a cooool #dummysmiley: :-) :-P <3 and some arrows < > -> <--",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("a"),
+                    w("cooool"),
+                    h("#dummysmiley"),
+                    p(":"),
+                    s(":-)"),
+                    s(":-P"),
+                    s("<3"),
+                    w("and"),
+                    w("some"),
+                    w("arrows"),
+                    p("<"),
+                    p(">"),
+                    s("->"),
+                    s("<--"),
+                ]
+            ),
+            (
+                "Such a nice kiss: :3 :'(",
+                vec![
+                    w("Such"),
+                    w("a"),
+                    w("nice"),
+                    w("kiss"),
+                    p(":"),
+                    s(":3"),
+                    s(":'(")
+                ]
+            ),
+            (
+                "This ends with #",
+                vec![
+                    w("This"),
+                    w("ends"),
+                    w("with"),
+                    p("#")
+                ]
+            ),
+            (
+                "This ends with @",
+                vec![
+                    w("This"),
+                    w("ends"),
+                    w("with"),
+                    p("@")
                 ]
             )
         ];
