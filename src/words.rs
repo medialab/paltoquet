@@ -333,11 +333,7 @@ impl<'a> Iterator for WordTokens<'a> {
 
                             let next_word = &lookead[..offset];
 
-                            if (last_c == 'n' && next_word == "t") || next_word == "hui" {
-                                false
-                            } else {
-                                true
-                            }
+                            !((last_c == 'n' && next_word == "t") || next_word == "hui")
                         }
                         _ => true,
                     }

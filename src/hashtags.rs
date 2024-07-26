@@ -1,3 +1,4 @@
+use std::convert::TryFrom;
 use std::str::CharIndices;
 
 enum HashtagSplitterState {
@@ -10,27 +11,35 @@ enum HashtagSplitterState {
 use HashtagSplitterState::*;
 
 struct HashtagParts<'a> {
-    text: &'a str,
+    input: &'a str,
     offset: usize,
     state: HashtagSplitterState,
-    chars: CharIndices<'a>,
     done: bool,
+    chars: CharIndices<'a>,
 }
 
-impl<'a> From<&'a str> for HashtagParts<'a> {
-    fn from(hashtag: &'a str) -> Self {
+impl<'a> TryFrom<&'a str> for HashtagParts<'a> {
+    type Error = ();
+
+    fn try_from(hashtag: &'a str) -> Result<Self, Self::Error> {
         let mut chars = hashtag.char_indices();
 
-        // Consuming the hashtag `#` and first char
-        chars.next().unwrap();
-        chars.next().unwrap();
+        match chars.next() {
+            None => return Err(()),
+            Some((_, c)) if c != '#' => return Err(()),
+            _ => (),
+        };
 
-        Self {
-            text: hashtag,
-            offset: 1,
-            state: UpperStart,
-            chars,
-            done: false,
+        if chars.next().is_some() {
+            Ok(Self {
+                input: hashtag,
+                offset: 1,
+                state: UpperStart,
+                done: false,
+                chars,
+            })
+        } else {
+            Err(())
         }
     }
 }
@@ -43,7 +52,7 @@ impl<'a> Iterator for HashtagParts<'a> {
             return None;
         }
 
-        let text = self.text;
+        let input = self.input;
 
         loop {
             match self.chars.next() {
@@ -94,12 +103,12 @@ impl<'a> Iterator for HashtagParts<'a> {
                     if let Some(delta) = result.0 {
                         let current_offset = self.offset;
                         self.offset = i - delta;
-                        return Some(&text[current_offset..i - delta]);
+                        return Some(&input[current_offset..i - delta]);
                     }
                 }
                 None => {
                     self.done = true;
-                    return Some(&text[self.offset..]);
+                    return Some(&input[self.offset..]);
                 }
             }
         }
@@ -111,7 +120,7 @@ mod tests {
     use super::*;
 
     fn split_hashtag(text: &str) -> Vec<&str> {
-        HashtagParts::from(text).collect()
+        HashtagParts::try_from(text).unwrap().collect()
     }
 
     #[test]
