@@ -27,6 +27,8 @@ use std::str::CharIndices;
 use lazy_static::lazy_static;
 use regex::Regex;
 
+static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœAÁÀÂÄĄÅOÓÔØEÉÈËÊĘIİÍÏÎYŸUÚÙÛÜÆŒ";
+
 lazy_static! {
     // TODO: consider Emoji_Presentation at some point
     static ref EMOJI_REGEX: Regex = {
@@ -46,7 +48,7 @@ lazy_static! {
         .unwrap()
     };
     static ref CONSONANT_REGEX: Regex = {
-        Regex::new("^[^aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœAÁÀÂÄĄÅOÓÔØEÉÈËÊĘIİÍÏÎYŸUÚÙÛÜÆŒ]").unwrap()
+        Regex::new(&format!("^[^{}]", VOWELS)).unwrap()
     };
     static ref ABBR_REGEX: Regex = {
         Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
