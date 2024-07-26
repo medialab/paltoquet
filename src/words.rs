@@ -7,6 +7,7 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
+    // TODO: consider Emoji_Presentation at some point
     static ref EMOJI_REGEX: Regex = {
         Regex::new(
             "(?x)
@@ -360,18 +361,36 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
-        // Article with apostrophe in roman languages
-        if is_consonant(&self.input[i..]) {
-            match (chars.next(), chars.next()) {
-                (Some((_, c2)), Some((i3, _)))
-                    if is_apostrophe(c2) && !is_consonant(&self.input[i3..]) =>
-                {
-                    return Some(WordToken {
-                        text: self.split_at(i3),
-                        kind: WordTokenKind::Word,
-                    });
+        let mut further_offset: Option<usize> = None;
+
+        // Testing various problematic things
+        if is_consonant(&self.input[i..]) || c == 'O' || c == 'o' {
+            if let (Some((_, c2)), Some((i3, c3))) = (chars.next(), chars.next()) {
+                if is_apostrophe(c2) {
+                    if is_consonant(&self.input[i3..]) {
+                        if c3 == 'h' {
+                            if c == 'O' || c == 'o' {
+                                // Irish
+                                further_offset = Some(i3);
+                            } else {
+                                // Article
+                                return Some(WordToken {
+                                    text: self.split_at(i3),
+                                    kind: WordTokenKind::Word,
+                                });
+                            }
+                        } else {
+                            // N'diaye, M'Leod etc.
+                            further_offset = Some(i3);
+                        }
+                    } else {
+                        // Article
+                        return Some(WordToken {
+                            text: self.split_at(i3),
+                            kind: WordTokenKind::Word,
+                        });
+                    }
                 }
-                _ => (),
             }
         }
 
@@ -381,6 +400,12 @@ impl<'a> Iterator for WordTokens<'a> {
         // Regular word
         let i = chars
             .find(|(j, c2)| {
+                if let Some(bound) = further_offset {
+                    if j < &bound {
+                        return false;
+                    }
+                }
+
                 if !c2.is_alphanumeric() {
                     match (is_apostrophe(*c2), last_c_opt) {
                         (true, Some(last_c)) => {
@@ -420,6 +445,8 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
 
     fn tokens(text: &str) -> Vec<WordToken> {
@@ -750,6 +777,27 @@ mod tests {
                     w("'tis"),
                     w("ok"),
                     p("!")
+                ]
+            ),
+            (
+                "D'mitr N'Guyen O'Doherty O'Hara Mbappé M'bappé M'Leod N'diaye N'Djaména L'Arrivée m'appeler sur l'herbe",
+                vec![
+                    w("D'mitr"),
+                    w("N'Guyen"),
+                    w("O'Doherty"),
+                    w("O'Hara"),
+                    w("Mbappé"),
+                    w("M'bappé"),
+                    w("M'Leod"),
+                    w("N'diaye"),
+                    w("N'Djaména"),
+                    w("L'"),
+                    w("Arrivée"),
+                    w("m'"),
+                    w("appeler"),
+                    w("sur"),
+                    w("l'"),
+                    w("herbe")
                 ]
             )
         ];
