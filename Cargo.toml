@@ -1,7 +1,9 @@
 [package]
 name = "paltoquet"
+description = "A library of rule-based general-purpose tokenizers."
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
 
 [dependencies]
 lazy_static = "1.4.0"
