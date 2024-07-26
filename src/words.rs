@@ -78,7 +78,10 @@ lazy_static! {
         Regex::new("^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)").unwrap()
     };
     static ref COMPOUND_WORD_REGEX: Regex = {
-        Regex::new("^\\p{Alpha}+([\\-_·][\\p{Alpha}'’]+)+").unwrap()
+        Regex::new("^[\\p{Alpha}\\p{Digit}]+([\\-_·][\\p{Alpha}\\p{Digit}'’]+)+").unwrap()
+    };
+    static ref FRENCH_ILLEGAL_COMPOUND_REGEX: Regex = {
+        Regex::new("(?:-t)?-(?:je|tu|ils?|elles?|[nv]ous|on|les?|la|moi|toi|lui|y)$").unwrap()
     };
 }
 
@@ -382,9 +385,24 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        COMPOUND_WORD_REGEX
-            .find(self.input)
-            .map(|m| self.split_at(m.end()))
+        if let Some(m) = COMPOUND_WORD_REGEX.find(self.input) {
+            if !FRENCH_ILLEGAL_COMPOUND_REGEX.is_match(&self.input[..m.end()]) {
+                return Some(self.split_at(m.end()));
+            } else {
+                let i = self.input[..m.end()]
+                    .char_indices()
+                    .find(|(_, c)| *c == '-')
+                    .map(|(i, _)| i)
+                    .unwrap();
+
+                let text = &self.input[..i];
+                self.input = &self.input[i + 1..];
+
+                return Some(text);
+            }
+        }
+
+        None
     }
 
     fn parse_apostrophe_issues<'b>(&mut self) -> Option<&'b str>
@@ -1279,6 +1297,42 @@ mod tests {
                     p("€"),
                     n("4"),
                     w("Millions")
+                ]
+            ),
+            (
+                "va-t-on est-il 15-20-minute talk peut-on dis-moi dis-le dis-lui vas-y dit-elle",
+                vec![
+                    w("va"),
+                    w("t"),
+                    w("on"),
+                    w("est"),
+                    w("il"),
+                    w("15-20-minute"),
+                    w("talk"),
+                    w("peut"),
+                    w("on"),
+                    w("dis"),
+                    w("moi"),
+                    w("dis"),
+                    w("le"),
+                    w("dis"),
+                    w("lui"),
+                    w("vas"),
+                    w("y"),
+                    w("dit"),
+                    w("elle")
+                ]
+            ),
+            (
+                "This is VERY 2.5 🙏 importANT!",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("VERY"),
+                    n("2.5"),
+                    e("🙏"),
+                    w("importANT"),
+                    p("!")
                 ]
             )
         ];
