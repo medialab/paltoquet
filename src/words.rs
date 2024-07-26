@@ -27,6 +27,9 @@ lazy_static! {
     static ref CONSONANT_REGEX: Regex = {
         Regex::new("^[^aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœAÁÀÂÄĄÅOÓÔØEÉÈËÊĘIİÍÏÎYŸUÚÙÛÜÆŒ]").unwrap()
     };
+    static ref ABBR_REGEX: Regex = {
+        Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
+    };
 }
 
 #[inline]
@@ -195,11 +198,14 @@ impl<'a> WordTokens<'a> {
             }
         }
 
-        EMOJI_REGEX.find(self.input).map(|m| {
-            let i = m.end();
+        EMOJI_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+    }
 
-            self.split_at(i)
-        })
+    fn parse_abbr<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        ABBR_REGEX.find(self.input).map(|m| self.split_at(m.end()))
     }
 
     fn parse_acronym<'b>(&mut self) -> Option<&'b str>
@@ -317,11 +323,12 @@ impl<'a> Iterator for WordTokens<'a> {
             return None;
         }
 
+        if let Some(text) = self.parse_abbr() {
+            return Some(WordToken::word(text));
+        }
+
         if let Some(text) = self.parse_acronym() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Word,
-            });
+            return Some(WordToken::word(text));
         }
 
         if let Some(text) = self.parse_hashtag() {
@@ -367,10 +374,7 @@ impl<'a> Iterator for WordTokens<'a> {
 
                 // E.g.: it's
                 if is_english_contraction(next_word) {
-                    return Some(WordToken {
-                        text: self.split_at(offset),
-                        kind: WordTokenKind::Word,
-                    });
+                    return Some(WordToken::word(self.split_at(offset)));
                 }
             }
 
@@ -395,10 +399,7 @@ impl<'a> Iterator for WordTokens<'a> {
                                 further_offset = Some(i3);
                             } else {
                                 // Article
-                                return Some(WordToken {
-                                    text: self.split_at(i3),
-                                    kind: WordTokenKind::Word,
-                                });
+                                return Some(WordToken::word(self.split_at(i3)));
                             }
                         } else {
                             // N'diaye, M'Leod etc.
@@ -406,10 +407,7 @@ impl<'a> Iterator for WordTokens<'a> {
                         }
                     } else {
                         // Article
-                        return Some(WordToken {
-                            text: self.split_at(i3),
-                            kind: WordTokenKind::Word,
-                        });
+                        return Some(WordToken::word(self.split_at(i3)));
                     }
                 }
             }
@@ -451,10 +449,7 @@ impl<'a> Iterator for WordTokens<'a> {
             .map(|(j, _)| j)
             .unwrap_or(self.input.len());
 
-        Some(WordToken {
-            text: self.split_at(i),
-            kind: WordTokenKind::Word,
-        })
+        Some(WordToken::word(self.split_at(i)))
     }
 }
 
@@ -841,6 +836,23 @@ mod tests {
                     w("something"),
                     w("else"),
                     p("?")
+                ]
+            ),
+            (
+                "Mr. Goldberg is dead with mlle. Jordan etc. What a day!",
+                vec![
+                    w("Mr."),
+                    w("Goldberg"),
+                    w("is"),
+                    w("dead"),
+                    w("with"),
+                    w("mlle."),
+                    w("Jordan"),
+                    w("etc."),
+                    w("What"),
+                    w("a"),
+                    w("day"),
+                    p("!")
                 ]
             )
         ];
