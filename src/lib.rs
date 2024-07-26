@@ -1,17 +1,15 @@
 mod hashtags;
 mod words;
 
-use hashtags::HashtagParts;
-use words::WordTokens;
+pub use hashtags::HashtagParts;
+pub use words::{WordToken, WordTokenKind, WordTokens};
 
-pub use words::{WordToken, WordTokenKind};
-
-pub trait Tokenizers {
+pub trait Tokenize {
     fn hashtag_parts(&self) -> Option<HashtagParts>;
     fn words(&self) -> WordTokens;
 }
 
-impl<'a> Tokenizers for str {
+impl<'a> Tokenize for str {
     fn hashtag_parts(&self) -> Option<HashtagParts> {
         HashtagParts::try_from(self).ok()
     }
