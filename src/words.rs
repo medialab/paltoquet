@@ -55,7 +55,7 @@ lazy_static! {
             // English shenanigans
             Regex::new("(?i)^(['’](?:twas|tis|ll|re|ve|[dms]))\\b").unwrap(),
             // Roman articles
-            Regex::new(&format!("(?i)^([^{v}]['’])([{v}h#@]\\p{{Alpha}}*)\\b", v=VOWELS)).unwrap(),
+            Regex::new(&format!("(?i)^((?:qu|[^{v}])['’])[{v}h#@]\\p{{Alpha}}*\\b", v=VOWELS)).unwrap(),
             // English contractions
             Regex::new("(?i)^(\\p{Alpha})['’](?:ll|re|ve|[dms])\\b").unwrap(),
             // Names like O'Hara and N'diaye
@@ -1100,22 +1100,22 @@ mod tests {
                     w("l33t")
                 ]
             ),
-            // (
-            //     "qu'importe le flacon pourvu qu'on ait l'ivresse!",
-            //     vec![
-            //         w("qu'"),
-            //         w("importe"),
-            //         w("le"),
-            //         w("flacon"),
-            //         w("pourvu"),
-            //         w("qu'"),
-            //         w("on"),
-            //         w("ait"),
-            //         w("l'"),
-            //         w("ivresse"),
-            //         p("!")
-            //     ]
-            // )
+            (
+                "qu'importe le flacon pourvu qu'on ait l'ivresse!",
+                vec![
+                    w("qu'"),
+                    w("importe"),
+                    w("le"),
+                    w("flacon"),
+                    w("pourvu"),
+                    w("qu'"),
+                    w("on"),
+                    w("ait"),
+                    w("l'"),
+                    w("ivresse"),
+                    p("!")
+                ]
+            )
         ];
 
         for (tt, expected) in tests {
