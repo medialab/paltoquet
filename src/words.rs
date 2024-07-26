@@ -1,3 +1,24 @@
+/// A general purpose word tokenizer able to consider a lot of edge cases and
+/// typical entities all while remaining mostly language agnostic wrt languages
+/// separating their words using whitespace (not the asian languages, for instance).
+///
+/// It was mostly designed for French and English, but it probably works with
+/// other latin languages out of the box.
+///
+/// The emitted tokens are tagged by entity types (not part-of-speech).
+///
+/// Some design choices:
+///  * We chose to only tag as numbers strings that could be parsed as ints or floats
+///    without ambiguity. This means word tokens may contain things that
+///    could be considered as numbers, but you can analyze them further down the line.
+///
+/// Here is a list of things we don't handle (yet):
+///   * Complex graphemes such as: u̲n̲d̲e̲r̲l̲i̲n̲e̲d̲ or ārrive
+///   * Multi-line hyphenation schemes
+///   * Junk found in the middle of a word token
+///   * It is not possible to keep apostrophes starting names
+///   * Some inclusive writing schemes not relying on specific punctuation
+///
 // Pointers:
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
@@ -38,6 +59,9 @@ lazy_static! {
     };
     static ref SMILEY_REGEX: Regex = {
         Regex::new("^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)").unwrap()
+    };
+    static ref COMPOUND_WORD_REGEX: Regex = {
+        Regex::new("^\\p{Alpha}+([\\-_·][\\p{Alpha}'’]+)+").unwrap()
     };
 }
 
@@ -350,6 +374,15 @@ impl<'a> WordTokens<'a> {
 
         Some(self.split_at(i))
     }
+
+    fn parse_compound_word<'b>(&mut self) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        COMPOUND_WORD_REGEX
+            .find(self.input)
+            .map(|m| self.split_at(m.end()))
+    }
 }
 
 impl<'a> Iterator for WordTokens<'a> {
@@ -420,9 +453,15 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        if let Some(text) = self.parse_compound_word() {
+            return Some(WordToken::word(text));
+        }
+
         let mut chars = self.input.char_indices();
 
         let (mut i, c) = chars.next().unwrap();
+
+        // TODO: convert complexities below as regexes
 
         // Punctuation
         if !c.is_alphanumeric() {
@@ -1060,7 +1099,87 @@ mod tests {
                     w("with"),
                     p("@")
                 ]
-            )
+            ),
+            (
+                "This is my mother-in-law.",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("my"),
+                    w("mother-in-law"),
+                    p(".")
+                ]
+            ),
+            (
+                "This is a very_cool_identifier",
+                vec![
+                    w("This"),
+                    w("is"),
+                    w("a"),
+                    w("very_cool_identifier")
+                ]
+            ),
+            (
+                "Un véritable chef-d\'œuvre!",
+                vec![
+                    w("Un"),
+                    w("véritable"),
+                    w("chef-d\'œuvre"),
+                    p("!"),
+                ]
+            ),
+            (
+                "This is -not cool- ok-",
+                vec![
+                    w("This"),
+                    w("is"),
+                    p("-"),
+                    w("not"),
+                    w("cool"),
+                    p("-"),
+                    w("ok"),
+                    p("-")
+                ]
+            ),
+            (
+                "7e 1er 7eme 7ème 7th 1st 3rd 2nd 2d 11º",
+                vec![
+                    w("7e"),
+                    w("1er"),
+                    w("7eme"),
+                    w("7ème"),
+                    w("7th"),
+                    w("1st"),
+                    w("3rd"),
+                    w("2nd"),
+                    w("2d"),
+                    w("11º")
+                ]
+            ),
+            (
+                "7even e11even l33t",
+                vec![
+                    w("7even"),
+                    w("e11even"),
+                    w("l33t")
+                ]
+            ),
+            // (
+            //     "qu'importe le flacon pourvu qu'on ait l'ivresse!",
+            //     vec![
+            //         w("qu'"),
+            //         w("importe"),
+            //         w("le"),
+            //         w("flacon"),
+            //         w("pourvu"),
+            //         w("qu'"),
+            //         w("on"),
+            //         w("ait"),
+            //         w("l'"),
+            //         w("ivresse"),
+            //         p("!")
+            //     ]
+            // )
         ];
 
         for (tt, expected) in tests {
