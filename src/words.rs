@@ -509,7 +509,7 @@ mod tests {
                 ],
             ),
             (
-                "They\'ll save and invest more.",
+                "They'll save and invest more.",
                 vec![
                     w("They"),
                     w("'ll"),
@@ -525,7 +525,7 @@ mod tests {
                 vec![w("One"), h("#hash"), p(".")]
             ),
             (
-                "hi, my name can\'t hello,",
+                "hi, my name can't hello,",
                 vec![
                     w("hi"),
                     p(","),
@@ -697,6 +697,60 @@ mod tests {
                     p("!"),
                     h("$cash")
                 ]
+            ),
+            (
+                "I've been. I'll be. You're mean. You've lost. I'd be. I'm nice. It's a shame!",
+                vec![
+                    w("I"),
+                    w("'ve"),
+                    w("been"),
+                    p("."),
+                    w("I"),
+                    w("'ll"),
+                    w("be"),
+                    p("."),
+                    w("You"),
+                    w("'re"),
+                    w("mean"),
+                    p("."),
+                    w("You"),
+                    w("'ve"),
+                    w("lost"),
+                    p("."),
+                    w("I"),
+                    w("'d"),
+                    w("be"),
+                    p("."),
+                    w("I"),
+                    w("'m"),
+                    w("nice"),
+                    p("."),
+                    w("It"),
+                    w("'s"),
+                    w("a"),
+                    w("shame"),
+                    p("!")
+                ]
+            ),
+            ("Aren't I?", vec![w("Aren't"), w("I"), p("?")]),
+            (
+                "'Tis but a jest. 'twas in vain alas! But 'tis ok!",
+                vec![
+                    w("'Tis"),
+                    w("but"),
+                    w("a"),
+                    w("jest"),
+                    p("."),
+                    w("'twas"),
+                    w("in"),
+                    w("vain"),
+                    w("alas"),
+                    p("!"),
+                    w("But"),
+                    w("'tis"),
+                    w("ok"),
+                    p("!")
+                ]
             )
         ];
 
@@ -739,7 +793,7 @@ mod tests {
     #[test]
     fn test_english_contractions() {
         assert_eq!(
-            tokens("I\'ll be there. 'tis a"),
+            tokens("I'll be there. 'tis a"),
             vec![
                 w("I"),
                 w("'ll"),
