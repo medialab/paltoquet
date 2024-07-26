@@ -220,7 +220,7 @@ impl<'a> WordTokens<'a> {
         };
 
         for (j, c) in chars {
-            if is_ascii_junk_or_whitespace(c) {
+            if is_ascii_junk_or_whitespace(c) || is_apostrophe(c) {
                 break;
             }
 
@@ -289,7 +289,8 @@ impl<'a> Iterator for WordTokens<'a> {
         if !c.is_alphanumeric() {
             // English contraction?
             if is_apostrophe(c) {
-                let offset = lookahead_chars(chars, 5, self.input.len(), char::is_whitespace);
+                let offset =
+                    lookahead_chars(chars, 5, self.input.len(), |nc| !nc.is_alphanumeric());
                 let next_word = &self.input[i + c.len_utf8()..offset];
 
                 // E.g.: it's
@@ -512,6 +513,19 @@ mod tests {
                     w("pendant"),
                     w("l'"),
                     w("été"),
+                    p("!"),
+                ],
+            ),
+            (
+                "It all started during the 90's!",
+                vec![
+                    w("It"),
+                    w("all"),
+                    w("started"),
+                    w("during"),
+                    w("the"),
+                    n("90"),
+                    w("'s"),
                     p("!"),
                 ],
             ),
