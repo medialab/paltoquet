@@ -300,8 +300,6 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
-        // TODO: move english contractions to this clause
-
         // Article with apostrophe in roman languages
         if is_consonant(&self.input[i..]) {
             match (chars.next(), chars.next()) {
