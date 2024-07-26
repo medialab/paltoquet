@@ -10,7 +10,7 @@ enum HashtagSplitterState {
 
 use HashtagSplitterState::*;
 
-struct HashtagParts<'a> {
+pub struct HashtagParts<'a> {
     input: &'a str,
     offset: usize,
     state: HashtagSplitterState,

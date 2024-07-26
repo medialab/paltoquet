@@ -55,7 +55,7 @@ where
 }
 
 #[derive(PartialEq, Debug)]
-enum WordTokenKind {
+pub enum WordTokenKind {
     Word,
     Hashtag,
     Mention,
@@ -65,12 +65,21 @@ enum WordTokenKind {
 }
 
 #[derive(PartialEq, Debug)]
-struct WordToken<'a> {
-    kind: WordTokenKind,
-    text: &'a str,
+pub struct WordToken<'a> {
+    pub kind: WordTokenKind,
+    pub text: &'a str,
 }
 
-struct WordTokens<'a> {
+impl<'a> WordToken<'a> {
+    pub fn word(text: &'a str) -> Self {
+        Self {
+            kind: WordTokenKind::Word,
+            text,
+        }
+    }
+}
+
+pub struct WordTokens<'a> {
     input: &'a str,
 }
 
