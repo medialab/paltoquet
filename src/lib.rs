@@ -1,17 +1,24 @@
 mod hashtags;
+mod paragraphs;
 mod words;
 
 pub use hashtags::HashtagParts;
+pub use paragraphs::paragraphs;
 pub use words::{WordToken, WordTokenKind, WordTokens};
 
 pub trait Tokenize {
     fn hashtag_parts(&self) -> Option<HashtagParts>;
+    fn paragraphs(&self) -> regex::Split;
     fn words(&self) -> WordTokens;
 }
 
 impl Tokenize for str {
     fn hashtag_parts(&self) -> Option<HashtagParts> {
         HashtagParts::try_from(self).ok()
+    }
+
+    fn paragraphs(&self) -> regex::Split {
+        paragraphs(self)
     }
 
     fn words(&self) -> WordTokens {

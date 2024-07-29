@@ -124,7 +124,7 @@ mod tests {
     }
 
     #[test]
-    fn split_hashtag_test() {
+    fn test_split_hashtag() {
         assert_eq!(split_hashtag("#test"), vec!["test"]);
         assert_eq!(split_hashtag("#Test"), vec!["Test"]);
         assert_eq!(split_hashtag("#t"), vec!["t"]);
