@@ -24,6 +24,7 @@
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
 
+use enumset::EnumSetType;
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -104,7 +105,7 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Debug, EnumSetType)]
 pub enum WordTokenKind {
     Word,
     Hashtag,
@@ -1295,5 +1296,10 @@ mod tests {
     fn test_word_token_kind() {
         assert_eq!(WordTokenKind::Email.as_str(), "email");
         assert_eq!("url".parse::<WordTokenKind>(), Ok(WordTokenKind::Url));
+
+        assert_eq!(
+            (WordTokenKind::Email | WordTokenKind::Url).contains(WordTokenKind::Email),
+            true
+        );
     }
 }
