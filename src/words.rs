@@ -22,6 +22,8 @@
 // Pointers:
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
+use std::str::FromStr;
+
 use lazy_static::lazy_static;
 use regex::Regex;
 
@@ -106,6 +108,41 @@ pub enum WordTokenKind {
     Url,
     Email,
     Smiley,
+}
+
+impl WordTokenKind {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Word => "word",
+            Self::Hashtag => "hashtag",
+            Self::Mention => "mention",
+            Self::Emoji => "emoji",
+            Self::Punctuation => "punct",
+            Self::Number => "number",
+            Self::Url => "url",
+            Self::Email => "email",
+            Self::Smiley => "smiley",
+        }
+    }
+}
+
+impl FromStr for WordTokenKind {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "word" => Self::Word,
+            "hashtag" => Self::Hashtag,
+            "mention" => Self::Mention,
+            "emoji" => Self::Emoji,
+            "punctuation" => Self::Punctuation,
+            "number" => Self::Number,
+            "url" => Self::Url,
+            "email" => Self::Email,
+            "smiley" => Self::Smiley,
+            _ => return Err(format!("unknown word token kind {}", s)),
+        })
+    }
 }
 
 #[derive(PartialEq, Debug)]
@@ -1404,5 +1441,11 @@ mod tests {
             tokens("I can't aujourd'hui."),
             vec![w("I"), w("can't"), w("aujourd'hui"), p(".")]
         );
+    }
+
+    #[test]
+    fn test_word_token_kind() {
+        assert_eq!(WordTokenKind::Email.as_str(), "email");
+        assert_eq!("url".parse::<WordTokenKind>(), Ok(WordTokenKind::Url));
     }
 }
