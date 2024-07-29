@@ -36,7 +36,10 @@ lazy_static! {
     static ref MENTION_REGEX: Regex = {
         Regex::new("(?i)^@\\p{Alpha}[\\p{Alpha}\\p{Digit}_]+\\b").unwrap()
     };
-    // TODO: consider Emoji_Presentation at some point
+    static ref NUMBER_REGEX: Regex = {
+        Regex::new("^-?\\p{Digit}+(?:[.,]\\p{Digit}+)?\\b").unwrap()
+    };
+    // NOTE: using Emoji_Presentation to avoid # and 0-9 shenanigans
     static ref EMOJI_REGEX: Regex = {
         Regex::new(
             "(?x)
@@ -51,7 +54,7 @@ lazy_static! {
                 \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
                 |
                 # Emoji with optional trailing junk
-                \\p{Emoji}\u{fe0f}?
+                \\p{Emoji_Presentation}\u{fe0f}?
             )",
         )
         .unwrap()
@@ -96,11 +99,6 @@ lazy_static! {
 #[inline]
 fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
-}
-
-#[inline]
-fn is_apostrophe(c: char) -> bool {
-    c == '\'' || c == '’'
 }
 
 #[derive(PartialEq, Debug)]
@@ -209,14 +207,6 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        // Fun fact, # is an emoji...
-        // Fun fact, numbers also...
-        if let Some(c) = self.input.chars().next() {
-            if c == '#' || c.is_ascii_digit() {
-                return None;
-            }
-        }
-
         EMOJI_REGEX.find(self.input).map(|m| self.split_at(m.end()))
     }
 
@@ -288,70 +278,9 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        let mut chars = self.input.char_indices();
-        let mut i: usize;
-
-        match chars.next() {
-            None => return None,
-            Some((j, c1)) => {
-                if c1 == '-' {
-                    match chars.next() {
-                        None => return None,
-                        Some((k, c2)) => {
-                            if !c2.is_numeric() {
-                                return None;
-                            }
-
-                            i = k;
-                        }
-                    };
-                } else if !c1.is_numeric() {
-                    return None;
-                } else {
-                    i = j;
-                }
-            }
-        };
-
-        let mut decimal_separator_pos: Option<usize> = None;
-
-        for (j, c) in chars {
-            if is_ascii_junk_or_whitespace(c) || is_apostrophe(c) {
-                break;
-            }
-
-            if c == ',' || c == '.' {
-                if decimal_separator_pos.is_some() {
-                    break;
-                }
-
-                i = j;
-
-                decimal_separator_pos = Some(j);
-                continue;
-            }
-
-            if c == '_' {
-                i = j;
-                continue;
-            }
-
-            if !c.is_numeric() {
-                return None;
-            }
-
-            i = j;
-        }
-
-        if let Some(p) = decimal_separator_pos {
-            if i == p {
-                return Some(self.split_at(i));
-            }
-        }
-
-        i += 1;
-
-        Some(self.split_at(i))
+        return NUMBER_REGEX
+            .find(self.input)
+            .map(|m| self.split_at(m.end()));
     }
 
     fn parse_compound_word<'b>(&mut self) -> Option<&'b str>
@@ -438,6 +367,11 @@ impl<'a> Iterator for WordTokens<'a> {
             });
         }
 
+        // NOTE: it is import to parse compound words before numbers
+        if let Some(text) = self.parse_compound_word() {
+            return Some(WordToken::word(text));
+        }
+
         // NOTE: it is important to test number before emojis
         if let Some(text) = self.parse_number() {
             return Some(WordToken {
@@ -461,10 +395,6 @@ impl<'a> Iterator for WordTokens<'a> {
         }
 
         if let Some(text) = self.parse_apostrophe_issues() {
-            return Some(WordToken::word(text));
-        }
-
-        if let Some(text) = self.parse_compound_word() {
             return Some(WordToken::word(text));
         }
 
@@ -1310,6 +1240,10 @@ mod tests {
             (
                 "#EnvieDeGégé »",
                 vec![h("#EnvieDeGégé"), p("»")]
+            ),
+            (
+                "₂",
+                vec![w("₂")]
             )
         ];
 
