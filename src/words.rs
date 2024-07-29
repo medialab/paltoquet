@@ -30,6 +30,12 @@ use regex::Regex;
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
 lazy_static! {
+    static ref HASHTAG_REGEX: Regex = {
+        Regex::new("(?i)^[#$]\\p{Alpha}[\\p{Alpha}\\p{Digit}]+\\b").unwrap()
+    };
+    static ref MENTION_REGEX: Regex = {
+        Regex::new("(?i)^@\\p{Alpha}[\\p{Alpha}\\p{Digit}_]+\\b").unwrap()
+    };
     // TODO: consider Emoji_Presentation at some point
     static ref EMOJI_REGEX: Regex = {
         Regex::new(
@@ -185,88 +191,18 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        let mut chars = self.input.char_indices();
-        let mut i: usize;
-
-        match chars.next() {
-            None => return None,
-            Some((_, c)) => {
-                if c != '#' && c != '$' {
-                    return None;
-                }
-            }
-        };
-
-        match chars.next() {
-            None => return None,
-            Some((j, c)) => {
-                if !c.is_alphabetic() {
-                    return None;
-                }
-
-                i = j;
-            }
-        };
-
-        for (j, c) in chars {
-            if is_ascii_junk_or_whitespace(c) || c.is_ascii_punctuation() {
-                break;
-            }
-
-            if !c.is_alphanumeric() {
-                return None;
-            }
-
-            i = j;
-        }
-
-        i += 1;
-
-        Some(self.split_at(i))
+        HASHTAG_REGEX
+            .find(self.input)
+            .map(|m| self.split_at(m.end()))
     }
 
     fn parse_mention<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        let mut chars = self.input.char_indices();
-        let mut i: usize;
-
-        match chars.next() {
-            None => return None,
-            Some((j, c)) => {
-                if c != '@' {
-                    return None;
-                }
-
-                i = j;
-            }
-        }
-
-        for (j, c) in chars {
-            if c == '_' {
-                i = j;
-                continue;
-            }
-
-            if is_ascii_junk_or_whitespace(c) || c.is_ascii_punctuation() {
-                break;
-            }
-
-            if !c.is_alphanumeric() {
-                return None;
-            }
-
-            i = j;
-        }
-
-        if i == 0 {
-            return None;
-        }
-
-        i += 1;
-
-        Some(self.split_at(i))
+        MENTION_REGEX
+            .find(self.input)
+            .map(|m| self.split_at(m.end()))
     }
 
     fn parse_emoji<'b>(&mut self) -> Option<&'b str>
@@ -642,8 +578,7 @@ mod tests {
                     h("#test"),
                     m("@yomgui"),
                     e("⭐"),
-                    p("@"),
-                    w("yomgui"),
+                    m("@yomgui"),
                     e("⭐"),
                 ],
             ),
@@ -1371,6 +1306,10 @@ mod tests {
                     w("importANT"),
                     p("!")
                 ]
+            ),
+            (
+                "#EnvieDeGégé »",
+                vec![h("#EnvieDeGégé"), p("»")]
             )
         ];
 
