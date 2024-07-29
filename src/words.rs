@@ -179,6 +179,13 @@ impl<'a> WordTokens<'a> {
         text
     }
 
+    fn split_at_match<'b>(&mut self, regex: &Regex) -> Option<&'b str>
+    where
+        'a: 'b,
+    {
+        regex.find(self.input).map(|m| self.split_at(m.end()))
+    }
+
     fn chomp(&mut self) {
         self.input = self
             .input
@@ -189,41 +196,35 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        HASHTAG_REGEX
-            .find(self.input)
-            .map(|m| self.split_at(m.end()))
+        self.split_at_match(&HASHTAG_REGEX)
     }
 
     fn parse_mention<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        MENTION_REGEX
-            .find(self.input)
-            .map(|m| self.split_at(m.end()))
+        self.split_at_match(&MENTION_REGEX)
     }
 
     fn parse_emoji<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        EMOJI_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+        self.split_at_match(&EMOJI_REGEX)
     }
 
     fn parse_abbr<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        ABBR_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+        self.split_at_match(&ABBR_REGEX)
     }
 
     fn parse_smiley<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        SMILEY_REGEX
-            .find(self.input)
-            .map(|m| self.split_at(m.end()))
+        self.split_at_match(&SMILEY_REGEX)
     }
 
     fn parse_acronym<'b>(&mut self) -> Option<&'b str>
@@ -264,23 +265,21 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        URL_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+        self.split_at_match(&URL_REGEX)
     }
 
     fn parse_email<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        EMAIL_REGEX.find(self.input).map(|m| self.split_at(m.end()))
+        self.split_at_match(&EMAIL_REGEX)
     }
 
     fn parse_number<'b>(&mut self) -> Option<&'b str>
     where
         'a: 'b,
     {
-        return NUMBER_REGEX
-            .find(self.input)
-            .map(|m| self.split_at(m.end()));
+        self.split_at_match(&NUMBER_REGEX)
     }
 
     fn parse_compound_word<'b>(&mut self) -> Option<&'b str>
