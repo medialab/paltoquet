@@ -92,7 +92,10 @@ lazy_static! {
         Regex::new("^[\\p{Alpha}\\p{Digit}]+([\\-_·][\\p{Alpha}\\p{Digit}'’]+)+").unwrap()
     };
     static ref FRENCH_ILLEGAL_COMPOUND_REGEX: Regex = {
-        Regex::new("(?:-t)?-(?:je|tu|ils?|elles?|[nv]ous|on|les?|la|moi|toi|lui|y)$").unwrap()
+        Regex::new("(?i)(?:-t)?-(?:je|tu|ils?|elles?|[nv]ous|on|les?|la|moi|toi|lui|y)$").unwrap()
+    };
+    static ref ACRONYM_REGEX: Regex = {
+        Regex::new("^\\p{Lu}(?:\\.\\p{Lu})+\\.?").unwrap()
     };
 }
 
@@ -231,34 +234,7 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        let mut chars = self.input.char_indices();
-
-        let mut end: usize = 0;
-
-        loop {
-            if let Some((_, c1)) = chars.next() {
-                if c1.is_uppercase() {
-                    if let Some((i2, c2)) = chars.next() {
-                        if c2 == '.' {
-                            end = i2 + 1;
-                            continue;
-                        }
-                    }
-
-                    break;
-                }
-
-                break;
-            }
-
-            break;
-        }
-
-        if end > 0 {
-            Some(self.split_at(end))
-        } else {
-            None
-        }
+        self.split_at_match(&ACRONYM_REGEX)
     }
 
     fn parse_url<'b>(&mut self) -> Option<&'b str>
@@ -1241,8 +1217,8 @@ mod tests {
                 vec![h("#EnvieDeGégé"), p("»")]
             ),
             (
-                "₂",
-                vec![w("₂")]
+                "₂ É.U.É lord motÉ ok",
+                vec![w("₂"), w("É.U.É"), w("lord"), w("motÉ"), w("ok")]
             )
         ];
 
