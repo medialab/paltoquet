@@ -311,6 +311,8 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 pub struct WordTokenizer {
     stoplist_regex: Option<Regex>,
     kind_blacklist: EnumSet<WordTokenKind>,
+    min_token_len: Option<usize>,
+    max_token_len: Option<usize>,
 }
 
 impl WordTokenizer {
@@ -321,6 +323,18 @@ impl WordTokenizer {
         WordTokens::from(text).filter(|token| {
             if self.kind_blacklist.contains(token.kind) {
                 return false;
+            }
+
+            if let Some(min) = self.min_token_len {
+                if token.text.len() < min {
+                    return false;
+                }
+            }
+
+            if let Some(max) = self.max_token_len {
+                if token.text.len() > max {
+                    return false;
+                }
             }
 
             if let Some(pattern) = &self.stoplist_regex {
@@ -338,6 +352,8 @@ impl WordTokenizer {
 pub struct WordTokenizerBuilder<'a> {
     stoplist: Vec<&'a str>,
     kind_blacklist: EnumSet<WordTokenKind>,
+    min_token_len: Option<usize>,
+    max_token_len: Option<usize>,
 }
 
 impl<'a> WordTokenizerBuilder<'a> {
@@ -376,6 +392,16 @@ impl<'a> WordTokenizerBuilder<'a> {
         self
     }
 
+    pub fn min_token_len(mut self, min: usize) -> Self {
+        self.min_token_len = Some(min);
+        self
+    }
+
+    pub fn max_token_len(mut self, max: usize) -> Self {
+        self.max_token_len = Some(max);
+        self
+    }
+
     pub fn build(self) -> WordTokenizer {
         let mut stoplist_regex = None;
 
@@ -398,6 +424,8 @@ impl<'a> WordTokenizerBuilder<'a> {
         WordTokenizer {
             stoplist_regex,
             kind_blacklist: self.kind_blacklist,
+            min_token_len: self.min_token_len,
+            max_token_len: self.max_token_len,
         }
     }
 }
@@ -1291,5 +1319,16 @@ mod tests {
             .build();
 
         assert_eq!(tokenizer.tokens("1 chat ⭐️"), vec![n("1"), e("⭐️")]);
+    }
+
+    #[test]
+    fn test_min_max_len() {
+        let tokenizer = WordTokenizerBuilder::new().min_token_len(3).build();
+
+        assert_eq!(tokenizer.tokens("le chat"), vec![w("chat")]);
+
+        let tokenizer = WordTokenizerBuilder::new().max_token_len(2).build();
+
+        assert_eq!(tokenizer.tokens("le chat"), vec![w("le")]);
     }
 }
