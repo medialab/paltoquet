@@ -26,9 +26,66 @@ use std::str::FromStr;
 
 use enumset::EnumSetType;
 use lazy_static::lazy_static;
-use regex::Regex;
+use regex_automata::meta::Regex;
 
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
+
+static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
+    // Hashtags
+    (
+        "(?i)^[#$]\\p{Alpha}[\\p{Alpha}\\p{Digit}]+\\b",
+        WordTokenKind::Hashtag,
+    ),
+    // Mentions
+    (
+        "(?i)^@\\p{Alpha}[\\p{Alpha}\\p{Digit}_]+\\b",
+        WordTokenKind::Mention,
+    ),
+    // Numbers
+    (
+        "^-?\\p{Digit}+(?:[.,]\\p{Digit}+)?\\b",
+        WordTokenKind::Number,
+    ),
+    // Emojis
+    (
+        "^(?x)(?:
+        # Regional indicators
+        \\p{Regional_indicator}+
+        |
+        # Emoji ZWJ sequence with optional trailing junk
+        \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
+        |
+        # Emoji modifier sequence
+        \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
+        |
+        # Emoji with optional trailing junk
+        \\p{Emoji_Presentation}\u{fe0f}?
+    )",
+        WordTokenKind::Emoji,
+    ),
+    // Abbreviations
+    (
+        "(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.",
+        WordTokenKind::Word,
+    ),
+    // Urls
+    ("(?i)^https?://[^\\s,;]+", WordTokenKind::Url),
+    // Emails
+    (
+        "^[A-Za-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[A-Za-z]{1,8}\\.[A-Za-z\\.]{1,16}",
+        WordTokenKind::Email,
+    ),
+    // Smileys
+    (
+        "^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)",
+        WordTokenKind::Smiley
+    ),
+    // Acronyms
+    (
+        "^\\p{Lu}(?:\\.\\p{Lu})+\\.?",
+        WordTokenKind::Word
+    )
+];
 
 lazy_static! {
     static ref HASHTAG_REGEX: Regex = {
@@ -59,9 +116,6 @@ lazy_static! {
             )",
         )
         .unwrap()
-    };
-    static ref CONSONANT_REGEX: Regex = {
-        Regex::new(&format!("^[^{}]", VOWELS)).unwrap()
     };
     static ref APOSTROPHE_REGEXES: [Regex; 5] = {
         [
@@ -288,8 +342,13 @@ impl<'a> WordTokens<'a> {
         'a: 'b,
     {
         for pattern in APOSTROPHE_REGEXES.iter() {
-            if let Some(caps) = pattern.captures(self.input) {
-                return Some(self.split_at(caps.get(1).unwrap().end()));
+            let mut caps = pattern.create_captures();
+            pattern.captures(self.input, &mut caps);
+
+            if caps.is_match() {
+                let i = caps.get_group(1).unwrap().end;
+
+                return Some(self.split_at(i));
             }
         }
 

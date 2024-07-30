@@ -1,13 +1,15 @@
 use lazy_static::lazy_static;
-use regex::{Regex, Split};
+use regex_automata::meta::Regex;
 
 lazy_static! {
     static ref SPLITTER_REGEX: Regex =
         Regex::new(r#"(?:\n\r|\r\n|\r|\n)[\t\s]*(?:\n\r|\r\n|\r|\n)+"#).unwrap();
 }
 
-pub fn paragraphs(text: &str) -> Split {
-    SPLITTER_REGEX.split(text)
+pub fn paragraphs(text: &str) -> impl Iterator<Item = &str> {
+    SPLITTER_REGEX
+        .split(text)
+        .map(|span| &text[span.start..span.end])
 }
 
 #[cfg(test)]

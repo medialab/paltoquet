@@ -8,7 +8,7 @@ pub use words::{WordToken, WordTokenKind, WordTokens};
 
 pub trait Tokenize {
     fn hashtag_parts(&self) -> Option<HashtagParts>;
-    fn paragraphs(&self) -> regex::Split;
+    fn paragraphs(&self) -> impl Iterator<Item = &str>;
     fn words(&self) -> WordTokens;
 }
 
@@ -17,7 +17,7 @@ impl Tokenize for str {
         HashtagParts::try_from(self).ok()
     }
 
-    fn paragraphs(&self) -> regex::Split {
+    fn paragraphs(&self) -> impl Iterator<Item = &str> {
         paragraphs(self)
     }
 
