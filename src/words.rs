@@ -156,7 +156,7 @@ impl FromStr for WordTokenKind {
             "hashtag" => Self::Hashtag,
             "mention" => Self::Mention,
             "emoji" => Self::Emoji,
-            "punctuation" => Self::Punctuation,
+            "punct" => Self::Punctuation,
             "number" => Self::Number,
             "url" => Self::Url,
             "email" => Self::Email,
