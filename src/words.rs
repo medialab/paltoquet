@@ -31,8 +31,8 @@ use regex_automata::meta::Regex;
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
 // NOTE: order IS important
-static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
-    // Hashtags
+static SIMPLE_PATTERNS: [(&str, WordTokenKind); 10] = [
+    // Hashtags (must happen before emojis)
     (
         "(?i)^[#$]\\p{Alpha}[\\p{Alpha}\\p{Digit}]+\\b",
         WordTokenKind::Hashtag,
@@ -42,7 +42,7 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
         "(?i)^@\\p{Alpha}[\\p{Alpha}\\p{Digit}_]+\\b",
         WordTokenKind::Mention,
     ),
-    // Numbers
+    // Numbers (must happen before emojis)
     (
         "^-?\\p{Digit}+(?:[.,]\\p{Digit}+)?\\b",
         WordTokenKind::Number,
@@ -84,6 +84,11 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
     // Acronyms
     (
         "^\\p{Lu}(?:\\.\\p{Lu})+\\.?",
+        WordTokenKind::Word
+    ),
+    // Early return for basic tokens
+    (
+        "^\\p{Alpha}+(?:\\s|$)",
         WordTokenKind::Word
     )
 ];
@@ -191,7 +196,7 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        let text = &self.input[..i];
+        let text = &self.input[..i].trim_end();
         self.input = &self.input[i..];
 
         text
@@ -274,14 +279,15 @@ impl<'a> Iterator for WordTokens<'a> {
             return Some(WordToken::word(text));
         }
 
-        if let Some(text) = self.parse_apostrophe_issues() {
-            return Some(WordToken::word(text));
-        }
-
         let token = self.parse_simple_pattern();
 
         if token.is_some() {
             return token;
+        }
+
+        // NOTE: this is costly so we let it happen later on
+        if let Some(text) = self.parse_apostrophe_issues() {
+            return Some(WordToken::word(text));
         }
 
         let mut chars = self.input.char_indices();
