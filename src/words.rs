@@ -24,7 +24,7 @@
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
 
-use enumset::EnumSetType;
+use enumset::{EnumSet, EnumSetType};
 use lazy_static::lazy_static;
 use regex_automata::meta::Regex;
 use regex_syntax::escape as regex_escape;
@@ -310,6 +310,7 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 
 pub struct WordTokenizer {
     stoplist_regex: Option<Regex>,
+    kind_blacklist: EnumSet<WordTokenKind>,
 }
 
 impl WordTokenizer {
@@ -318,11 +319,17 @@ impl WordTokenizer {
         'b: 'a,
     {
         WordTokens::from(text).filter(|token| {
-            if let Some(pattern) = &self.stoplist_regex {
-                !pattern.is_match(&token.text)
-            } else {
-                true
+            if self.kind_blacklist.contains(token.kind) {
+                return false;
             }
+
+            if let Some(pattern) = &self.stoplist_regex {
+                if pattern.is_match(&token.text) {
+                    return false;
+                }
+            }
+
+            true
         })
     }
 }
@@ -330,6 +337,7 @@ impl WordTokenizer {
 #[derive(Default)]
 pub struct WordTokenizerBuilder<'a> {
     stoplist: Vec<&'a str>,
+    kind_blacklist: EnumSet<WordTokenKind>,
 }
 
 impl<'a> WordTokenizerBuilder<'a> {
@@ -345,6 +353,25 @@ impl<'a> WordTokenizerBuilder<'a> {
         for word in words {
             self.insert_stopword(word);
         }
+
+        self
+    }
+
+    pub fn token_kind_blacklist<T: IntoIterator<Item = WordTokenKind>>(mut self, kinds: T) -> Self {
+        self.kind_blacklist.clear();
+
+        for kind in kinds {
+            self.kind_blacklist.insert(kind);
+        }
+
+        self
+    }
+
+    pub fn token_kind_whitelist<T: IntoIterator<Item = WordTokenKind>>(mut self, kinds: T) -> Self {
+        self.kind_blacklist.clear();
+
+        let whitelist = kinds.into_iter().collect::<EnumSet<_>>();
+        self.kind_blacklist = EnumSet::all() - whitelist;
 
         self
     }
@@ -368,7 +395,10 @@ impl<'a> WordTokenizerBuilder<'a> {
             stoplist_regex = Some(Regex::new(&stoplist_pattern).unwrap());
         }
 
-        WordTokenizer { stoplist_regex }
+        WordTokenizer {
+            stoplist_regex,
+            kind_blacklist: self.kind_blacklist,
+        }
     }
 }
 
@@ -1216,6 +1246,15 @@ mod tests {
         );
     }
 
+    impl WordTokenizer {
+        fn tokens<'a, 'b>(&'a self, text: &'b str) -> Vec<WordToken<'b>>
+        where
+            'a: 'b,
+        {
+            self.tokenize(text).collect()
+        }
+    }
+
     #[test]
     fn test_stopwords() {
         let mut builder = WordTokenizerBuilder::new();
@@ -1225,9 +1264,7 @@ mod tests {
         let tokenizer = builder.build();
 
         assert_eq!(
-            tokenizer
-                .tokenize("le chat mange la souris")
-                .collect::<Vec<_>>(),
+            tokenizer.tokens("le chat mange la souris"),
             vec![w("chat"), w("mange"), w("souris")]
         );
 
@@ -1236,10 +1273,23 @@ mod tests {
             .build();
 
         assert_eq!(
-            tokenizer
-                .tokenize("le chat mange la souris")
-                .collect::<Vec<_>>(),
+            tokenizer.tokens("le chat mange la souris"),
             vec![w("le"), w("mange"), w("la")]
         );
+    }
+
+    #[test]
+    fn test_kind_blacklist_whitelist() {
+        let tokenizer = WordTokenizerBuilder::new()
+            .token_kind_blacklist([WordTokenKind::Number])
+            .build();
+
+        assert_eq!(tokenizer.tokens("1 chat ⭐️"), vec![w("chat"), e("⭐️")]);
+
+        let tokenizer = WordTokenizerBuilder::new()
+            .token_kind_whitelist([WordTokenKind::Number, WordTokenKind::Emoji])
+            .build();
+
+        assert_eq!(tokenizer.tokens("1 chat ⭐️"), vec![n("1"), e("⭐️")]);
     }
 }
