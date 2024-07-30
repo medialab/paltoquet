@@ -50,18 +50,19 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 10] = [
     // Emojis
     (
         "^(?x)(?:
-        # Regional indicators
-        \\p{Regional_indicator}+
-        |
-        # Emoji ZWJ sequence with optional trailing junk
-        \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
-        |
-        # Emoji modifier sequence
-        \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
-        |
-        # Emoji with optional trailing junk
-        \\p{Emoji_Presentation}\u{fe0f}?
-    )",
+            # Regional indicators
+            \\p{Regional_indicator}+
+            |
+            # Emoji ZWJ sequence with optional trailing junk
+            \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
+            |
+            # Emoji modifier sequence
+            \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
+            |
+            # Emoji with optional trailing junk
+            \\p{Emoji_Presentation}\u{fe0f}?
+        )
+        ",
         WordTokenKind::Emoji,
     ),
     // Abbreviations
@@ -73,7 +74,7 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 10] = [
     ("(?i)^https?://[^\\s,;]+", WordTokenKind::Url),
     // Emails
     (
-        "^[A-Za-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[A-Za-z]{1,8}\\.[A-Za-z\\.]{1,16}",
+        "^(?i)[a-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[a-z]{2,8}\\.[a-z]{2,8}(?:\\.[a-z]{2,8})*",
         WordTokenKind::Email,
     ),
     // Smileys
@@ -776,11 +777,13 @@ mod tests {
                 ]
             ),
             (
-                "email:john@whatever.net",
+                "email:john@whatever.net test@test.com.",
                 vec![
                     w("email"),
                     p(":"),
-                    email("john@whatever.net")
+                    email("john@whatever.net"),
+                    email("test@test.com"),
+                    p(".")
                 ]
             ),
             (
