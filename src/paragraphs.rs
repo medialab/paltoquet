@@ -6,7 +6,7 @@ lazy_static! {
         Regex::new(r#"(?:\n\r|\r\n|\r|\n)[\t\s]*(?:\n\r|\r\n|\r|\n)+"#).unwrap();
 }
 
-pub fn paragraphs(text: &str) -> impl Iterator<Item = &str> {
+pub fn split_paragraphs(text: &str) -> impl Iterator<Item = &str> {
     SPLITTER_REGEX
         .split(text)
         .map(|span| &text[span.start..span.end])
@@ -21,7 +21,7 @@ mod tests {
         let text = "Hello first paragraph.\n\nWhat do you do?\r\n\r\nHello Mom!\r\n\r\nAnother paragraph. Multiple sentences.\nYou see?\n\n\nHere.\n\t\nThere.\n    \nOver there!\n\nOne.\r\rTwo.\n\r  \n\rThree.";
 
         assert_eq!(
-            paragraphs(text).collect::<Vec<_>>(),
+            split_paragraphs(text).collect::<Vec<_>>(),
             vec![
                 "Hello first paragraph.",
                 "What do you do?",

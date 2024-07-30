@@ -115,6 +115,10 @@ impl<'a> Iterator for HashtagParts<'a> {
     }
 }
 
+pub fn split_hashtag(text: &str) -> Option<HashtagParts> {
+    HashtagParts::try_from(text).ok()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
