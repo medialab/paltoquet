@@ -90,6 +90,10 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
 ];
 
 lazy_static! {
+    static ref NAIVE_REGEX: Regex = {
+        Regex::new("\\b\\w+\\b").unwrap()
+    };
+
     static ref SIMPLE_PATTERNS_REGEX: Regex = {
         Regex::new_many(&SIMPLE_PATTERNS.iter().map(|(p, _)| *p).collect::<Vec<_>>()).unwrap()
     };
@@ -308,7 +312,7 @@ impl<'a> From<&'a str> for WordTokens<'a> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct WordTokenizer {
     stoplist_regex: Option<Regex>,
     kind_blacklist: EnumSet<WordTokenKind>,
@@ -317,35 +321,54 @@ pub struct WordTokenizer {
 }
 
 impl WordTokenizer {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn token_predicate(&self, token: &WordToken) -> bool {
+        if self.kind_blacklist.contains(token.kind) {
+            return false;
+        }
+
+        if let Some(min) = self.min_token_len {
+            if token.text.len() < min {
+                return false;
+            }
+        }
+
+        if let Some(max) = self.max_token_len {
+            if token.text.len() > max {
+                return false;
+            }
+        }
+
+        if let Some(pattern) = &self.stoplist_regex {
+            if pattern.is_match(token.text) {
+                return false;
+            }
+        }
+
+        true
+    }
+
     pub fn tokenize<'a, 'b>(&'a self, text: &'b str) -> impl Iterator<Item = WordToken<'b>> + 'a
     where
         'b: 'a,
     {
-        WordTokens::from(text).filter(|token| {
-            if self.kind_blacklist.contains(token.kind) {
-                return false;
-            }
+        WordTokens::from(text).filter(|token| self.token_predicate(token))
+    }
 
-            if let Some(min) = self.min_token_len {
-                if token.text.len() < min {
-                    return false;
-                }
-            }
-
-            if let Some(max) = self.max_token_len {
-                if token.text.len() > max {
-                    return false;
-                }
-            }
-
-            if let Some(pattern) = &self.stoplist_regex {
-                if pattern.is_match(token.text) {
-                    return false;
-                }
-            }
-
-            true
-        })
+    pub fn simple_tokenize<'a, 'b>(
+        &'a self,
+        text: &'b str,
+    ) -> impl Iterator<Item = WordToken<'b>> + 'a
+    where
+        'b: 'a,
+    {
+        NAIVE_REGEX
+            .find_iter(text)
+            .map(|m| WordToken::word(&text[m.start()..m.end()]))
+            .filter(|token| self.token_predicate(token))
     }
 }
 
@@ -1286,6 +1309,22 @@ mod tests {
         {
             self.tokenize(text).collect()
         }
+
+        fn simple_tokens<'a, 'b>(&'a self, text: &'b str) -> Vec<WordToken<'b>>
+        where
+            'a: 'b,
+        {
+            self.simple_tokenize(text).collect()
+        }
+    }
+
+    #[test]
+    fn test_default_tokenizer() {
+        let tokenizer = WordTokenizerBuilder::new().build();
+        assert_eq!(tokenizer.tokens("le chat"), vec![w("le"), w("chat")]);
+
+        let tokenizer = WordTokenizer::new();
+        assert_eq!(tokenizer.tokens("le chat"), vec![w("le"), w("chat")]);
     }
 
     #[test]
@@ -1335,5 +1374,15 @@ mod tests {
         let tokenizer = WordTokenizerBuilder::new().max_token_len(2).build();
 
         assert_eq!(tokenizer.tokens("le chat"), vec![w("le")]);
+    }
+
+    #[test]
+    fn test_simple_tokenize() {
+        let tokenizer = WordTokenizer::new();
+
+        assert_eq!(
+            tokenizer.simple_tokens("le chat un 2"),
+            vec![w("le"), w("chat"), w("un"), w("2")]
+        );
     }
 }
