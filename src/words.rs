@@ -308,6 +308,7 @@ impl<'a> From<&'a str> for WordTokens<'a> {
     }
 }
 
+#[derive(Clone)]
 pub struct WordTokenizer {
     stoplist_regex: Option<Regex>,
     kind_blacklist: EnumSet<WordTokenKind>,
