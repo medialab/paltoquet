@@ -30,6 +30,7 @@ use regex_automata::meta::Regex;
 
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
+// NOTE: order IS important
 static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
     // Hashtags
     (
@@ -88,34 +89,8 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
 ];
 
 lazy_static! {
-    static ref HASHTAG_REGEX: Regex = {
-        Regex::new("(?i)^[#$]\\p{Alpha}[\\p{Alpha}\\p{Digit}]+\\b").unwrap()
-    };
-    static ref MENTION_REGEX: Regex = {
-        Regex::new("(?i)^@\\p{Alpha}[\\p{Alpha}\\p{Digit}_]+\\b").unwrap()
-    };
-    static ref NUMBER_REGEX: Regex = {
-        Regex::new("^-?\\p{Digit}+(?:[.,]\\p{Digit}+)?\\b").unwrap()
-    };
-    // NOTE: using Emoji_Presentation to avoid # and 0-9 shenanigans
-    static ref EMOJI_REGEX: Regex = {
-        Regex::new(
-            "(?x)
-            ^(?:
-                # Regional indicators
-                \\p{Regional_indicator}+
-                |
-                # Emoji ZWJ sequence with optional trailing junk
-                \\p{Emoji}(?:\u{200d}\\p{Emoji})+\u{fe0f}?
-                |
-                # Emoji modifier sequence
-                \\p{Emoji_Modifier_Base}(?:\u{fe0f}?\\p{Emoji_Modifier})?
-                |
-                # Emoji with optional trailing junk
-                \\p{Emoji_Presentation}\u{fe0f}?
-            )",
-        )
-        .unwrap()
+    static ref SIMPLE_PATTERNS_REGEX: Regex = {
+        Regex::new_many(&SIMPLE_PATTERNS.iter().map(|(p, _)| *p).collect::<Vec<_>>()).unwrap()
     };
     static ref APOSTROPHE_REGEXES: [Regex; 5] = {
         [
@@ -131,26 +106,11 @@ lazy_static! {
             Regex::new(&format!("(?i)^((?:[^{v}]|O)['’]\\p{{Alpha}}+)\\b", v=VOWELS)).unwrap()
         ]
     };
-    static ref ABBR_REGEX: Regex = {
-        Regex::new("(?i)^(?:app?t|etc|[djs]r|prof|mlle|mgr|min|mrs|m[rs]|m|no|pp?|st|vs)\\.").unwrap()
-    };
-    static ref URL_REGEX: Regex = {
-        Regex::new("(?i)^https?://[^\\s,;]+").unwrap()
-    };
-    static ref EMAIL_REGEX: Regex = {
-        Regex::new("^[A-Za-z0-9!#$%&*+\\-/=?^_`{|}~]{1,64}@[A-Za-z]{1,8}\\.[A-Za-z\\.]{1,16}").unwrap()
-    };
-    static ref SMILEY_REGEX: Regex = {
-        Regex::new("^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)").unwrap()
-    };
     static ref COMPOUND_WORD_REGEX: Regex = {
         Regex::new("^[\\p{Alpha}\\p{Digit}]+([\\-_·][\\p{Alpha}\\p{Digit}'’]+)+").unwrap()
     };
     static ref FRENCH_ILLEGAL_COMPOUND_REGEX: Regex = {
         Regex::new("(?i)(?:-t)?-(?:je|tu|ils?|elles?|[nv]ous|on|les?|la|moi|toi|lui|y)$").unwrap()
-    };
-    static ref ACRONYM_REGEX: Regex = {
-        Regex::new("^\\p{Lu}(?:\\.\\p{Lu})+\\.?").unwrap()
     };
 }
 
@@ -237,80 +197,24 @@ impl<'a> WordTokens<'a> {
         text
     }
 
-    fn split_at_match<'b>(&mut self, regex: &Regex) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        regex.find(self.input).map(|m| self.split_at(m.end()))
-    }
-
     fn chomp(&mut self) {
         self.input = self
             .input
             .trim_start_matches(|c: char| is_ascii_junk_or_whitespace(c));
     }
 
-    fn parse_hashtag<'b>(&mut self) -> Option<&'b str>
+    fn parse_simple_pattern<'b>(&mut self) -> Option<WordToken<'b>>
     where
         'a: 'b,
     {
-        self.split_at_match(&HASHTAG_REGEX)
-    }
+        SIMPLE_PATTERNS_REGEX.find(self.input).map(|m| {
+            let text = self.split_at(m.end());
 
-    fn parse_mention<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&MENTION_REGEX)
-    }
-
-    fn parse_emoji<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&EMOJI_REGEX)
-    }
-
-    fn parse_abbr<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&ABBR_REGEX)
-    }
-
-    fn parse_smiley<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&SMILEY_REGEX)
-    }
-
-    fn parse_acronym<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&ACRONYM_REGEX)
-    }
-
-    fn parse_url<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&URL_REGEX)
-    }
-
-    fn parse_email<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&EMAIL_REGEX)
-    }
-
-    fn parse_number<'b>(&mut self) -> Option<&'b str>
-    where
-        'a: 'b,
-    {
-        self.split_at_match(&NUMBER_REGEX)
+            WordToken {
+                kind: SIMPLE_PATTERNS[m.pattern()].1,
+                text,
+            }
+        })
     }
 
     fn parse_compound_word<'b>(&mut self) -> Option<&'b str>
@@ -366,71 +270,18 @@ impl<'a> Iterator for WordTokens<'a> {
             return None;
         }
 
-        if let Some(text) = self.parse_url() {
-            return Some(WordToken {
-                kind: WordTokenKind::Url,
-                text,
-            });
-        }
-
-        if let Some(text) = self.parse_email() {
-            return Some(WordToken {
-                kind: WordTokenKind::Email,
-                text,
-            });
-        }
-
-        if let Some(text) = self.parse_abbr() {
-            return Some(WordToken::word(text));
-        }
-
-        if let Some(text) = self.parse_acronym() {
-            return Some(WordToken::word(text));
-        }
-
-        if let Some(text) = self.parse_hashtag() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Hashtag,
-            });
-        }
-
-        if let Some(text) = self.parse_mention() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Mention,
-            });
-        }
-
-        // NOTE: it is import to parse compound words before numbers
         if let Some(text) = self.parse_compound_word() {
             return Some(WordToken::word(text));
         }
 
-        // NOTE: it is important to test number before emojis
-        if let Some(text) = self.parse_number() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Number,
-            });
-        }
-
-        if let Some(text) = self.parse_emoji() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Emoji,
-            });
-        }
-
-        if let Some(text) = self.parse_smiley() {
-            return Some(WordToken {
-                text,
-                kind: WordTokenKind::Smiley,
-            });
-        }
-
         if let Some(text) = self.parse_apostrophe_issues() {
             return Some(WordToken::word(text));
+        }
+
+        let token = self.parse_simple_pattern();
+
+        if token.is_some() {
+            return token;
         }
 
         let mut chars = self.input.char_indices();
