@@ -23,7 +23,6 @@
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
-use std::string::ToString;
 
 use enumset::{EnumSet, EnumSetType};
 use lazy_static::lazy_static;
@@ -340,7 +339,7 @@ impl WordTokenizer {
             }
 
             if let Some(pattern) = &self.stoplist_regex {
-                if pattern.is_match(&token.text) {
+                if pattern.is_match(token.text) {
                     return false;
                 }
             }
@@ -363,11 +362,15 @@ impl WordTokenizerBuilder {
         Self::default()
     }
 
-    pub fn insert_stopword(&mut self, stopword: &str) {
-        self.stoplist.push(stopword.to_string());
+    pub fn insert_stopword<T: Into<String>>(&mut self, stopword: T) {
+        self.stoplist.push(stopword.into());
     }
 
-    pub fn stopwords<'a, T: IntoIterator<Item = &'a str>>(mut self, words: T) -> Self {
+    pub fn stopwords<S, T>(mut self, words: T) -> Self
+    where
+        S: Into<String>,
+        T: IntoIterator<Item = S>,
+    {
         for word in words {
             self.insert_stopword(word);
         }
