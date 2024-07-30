@@ -31,7 +31,7 @@ use regex_automata::meta::Regex;
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
 // NOTE: order IS important
-static SIMPLE_PATTERNS: [(&str, WordTokenKind); 10] = [
+static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
     // Hashtags (must happen before emojis)
     (
         "(?i)^[#$]\\p{Alpha}[\\p{Alpha}\\p{Digit}]+\\b",
@@ -78,20 +78,14 @@ static SIMPLE_PATTERNS: [(&str, WordTokenKind); 10] = [
         WordTokenKind::Email,
     ),
     // Smileys
-    (
-        "^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)",
-        WordTokenKind::Smiley
-    ),
+    // (
+    //     "^(?:[\\-]+>|<[\\-]+|[<>]?[:;=8][\\-o\\*\\']?[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\]|[\\)\\]\\(\\[dDpP/\\:\\}\\{@\\|\\\\][\\-o\\*\\']?[:;=8]|[<:]3|\\^\\^)",
+    //     WordTokenKind::Smiley
+    // ),
     // Acronyms
-    (
-        "^\\p{Lu}(?:\\.\\p{Lu})+\\.?",
-        WordTokenKind::Word
-    ),
+    ("^\\p{Lu}(?:\\.\\p{Lu})+\\.?", WordTokenKind::Word),
     // Early return for basic tokens
-    (
-        "^\\p{Alpha}+(?:\\s|$)",
-        WordTokenKind::Word
-    )
+    ("^\\p{Alpha}+(?:\\s|$)", WordTokenKind::Word),
 ];
 
 lazy_static! {
@@ -135,7 +129,6 @@ pub enum WordTokenKind {
     Number,
     Url,
     Email,
-    Smiley,
 }
 
 impl WordTokenKind {
@@ -149,7 +142,6 @@ impl WordTokenKind {
             Self::Number => "number",
             Self::Url => "url",
             Self::Email => "email",
-            Self::Smiley => "smiley",
         }
     }
 }
@@ -167,7 +159,6 @@ impl FromStr for WordTokenKind {
             "number" => Self::Number,
             "url" => Self::Url,
             "email" => Self::Email,
-            "smiley" => Self::Smiley,
             _ => return Err(format!("unknown word token kind {}", s)),
         })
     }
@@ -378,13 +369,6 @@ mod tests {
     fn email(text: &str) -> WordToken {
         WordToken {
             kind: WordTokenKind::Email,
-            text,
-        }
-    }
-
-    fn s(text: &str) -> WordToken {
-        WordToken {
-            kind: WordTokenKind::Smiley,
             text,
         }
     }
@@ -784,61 +768,6 @@ mod tests {
                     email("john@whatever.net"),
                     email("test@test.com"),
                     p(".")
-                ]
-            ),
-            (
-                "Checkout this ----> https://www.facebook.com, <--",
-                vec![
-                    w("Checkout"),
-                    w("this"),
-                    s("---->"),
-                    u("https://www.facebook.com"),
-                    p(","),
-                    s("<--")
-                ]
-            ),
-            (
-                "Love you :). Bye <3",
-                vec![
-                    w("Love"),
-                    w("you"),
-                    s(":)"),
-                    p("."),
-                    w("Bye"),
-                    s("<3")
-                ]
-            ),
-            (
-                "This is a cooool #dummysmiley: :-) :-P <3 and some arrows < > -> <--",
-                vec![
-                    w("This"),
-                    w("is"),
-                    w("a"),
-                    w("cooool"),
-                    h("#dummysmiley"),
-                    p(":"),
-                    s(":-)"),
-                    s(":-P"),
-                    s("<3"),
-                    w("and"),
-                    w("some"),
-                    w("arrows"),
-                    p("<"),
-                    p(">"),
-                    s("->"),
-                    s("<--"),
-                ]
-            ),
-            (
-                "Such a nice kiss: :3 :'(",
-                vec![
-                    w("Such"),
-                    w("a"),
-                    w("nice"),
-                    w("kiss"),
-                    p(":"),
-                    s(":3"),
-                    s(":'(")
                 ]
             ),
             (
