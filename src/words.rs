@@ -190,7 +190,7 @@ impl<'a> WordTokens<'a> {
         'a: 'b,
     {
         let text = &self.input[..i].trim_end();
-        self.input = &self.input[i..];
+        self.input = &self.input[text.len()..];
 
         text
     }
