@@ -23,6 +23,7 @@
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
+use std::string::ToString;
 
 use enumset::{EnumSet, EnumSetType};
 use lazy_static::lazy_static;
@@ -350,23 +351,23 @@ impl WordTokenizer {
 }
 
 #[derive(Default)]
-pub struct WordTokenizerBuilder<'a> {
-    stoplist: Vec<&'a str>,
+pub struct WordTokenizerBuilder {
+    stoplist: Vec<String>,
     kind_blacklist: EnumSet<WordTokenKind>,
     min_token_len: Option<usize>,
     max_token_len: Option<usize>,
 }
 
-impl<'a> WordTokenizerBuilder<'a> {
+impl WordTokenizerBuilder {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn insert_stopword(&mut self, stopword: &'a str) {
-        self.stoplist.push(stopword);
+    pub fn insert_stopword(&mut self, stopword: &str) {
+        self.stoplist.push(stopword.to_string());
     }
 
-    pub fn stopwords<T: IntoIterator<Item = &'a str>>(mut self, words: T) -> Self {
+    pub fn stopwords<'a, T: IntoIterator<Item = &'a str>>(mut self, words: T) -> Self {
         for word in words {
             self.insert_stopword(word);
         }
@@ -412,8 +413,8 @@ impl<'a> WordTokenizerBuilder<'a> {
             stoplist_pattern.push_str(
                 &self
                     .stoplist
-                    .into_iter()
-                    .map(regex_escape)
+                    .iter()
+                    .map(|s| regex_escape(s))
                     .collect::<Vec<_>>()
                     .join("|"),
             );
