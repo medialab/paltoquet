@@ -16,6 +16,7 @@ authors = [
 enumset = "1.1.5"
 lazy_static = "1.4.0"
 regex-automata = "0.4.7"
+regex-syntax = "0.8.4"
 
 [dev-dependencies]
 pretty_assertions = "1.4.0"

@@ -27,6 +27,7 @@ use std::str::FromStr;
 use enumset::EnumSetType;
 use lazy_static::lazy_static;
 use regex_automata::meta::Regex;
+use regex_syntax::escape as regex_escape;
 
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 
@@ -304,6 +305,70 @@ impl<'a> Iterator for WordTokens<'a> {
 impl<'a> From<&'a str> for WordTokens<'a> {
     fn from(value: &'a str) -> Self {
         Self { input: value }
+    }
+}
+
+pub struct WordTokenizer {
+    stoplist_regex: Option<Regex>,
+}
+
+impl WordTokenizer {
+    pub fn tokenize<'a, 'b>(&'a self, text: &'b str) -> impl Iterator<Item = WordToken<'b>> + 'a
+    where
+        'b: 'a,
+    {
+        WordTokens::from(text).filter(|token| {
+            if let Some(pattern) = &self.stoplist_regex {
+                !pattern.is_match(&token.text)
+            } else {
+                true
+            }
+        })
+    }
+}
+
+#[derive(Default)]
+pub struct WordTokenizerBuilder<'a> {
+    stoplist: Vec<&'a str>,
+}
+
+impl<'a> WordTokenizerBuilder<'a> {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert_stopword(&mut self, stopword: &'a str) {
+        self.stoplist.push(stopword);
+    }
+
+    pub fn stopwords<T: IntoIterator<Item = &'a str>>(mut self, words: T) -> Self {
+        for word in words {
+            self.insert_stopword(word);
+        }
+
+        self
+    }
+
+    pub fn build(self) -> WordTokenizer {
+        let mut stoplist_regex = None;
+
+        if !self.stoplist.is_empty() {
+            let mut stoplist_pattern = String::from("(?i)(?:");
+
+            stoplist_pattern.push_str(
+                &self
+                    .stoplist
+                    .into_iter()
+                    .map(regex_escape)
+                    .collect::<Vec<_>>()
+                    .join("|"),
+            );
+            stoplist_pattern.push(')');
+
+            stoplist_regex = Some(Regex::new(&stoplist_pattern).unwrap());
+        }
+
+        WordTokenizer { stoplist_regex }
     }
 }
 
@@ -1148,6 +1213,33 @@ mod tests {
         assert_eq!(
             (WordTokenKind::Email | WordTokenKind::Url).contains(WordTokenKind::Email),
             true
+        );
+    }
+
+    #[test]
+    fn test_stopwords() {
+        let mut builder = WordTokenizerBuilder::new();
+        builder.insert_stopword("le");
+        builder.insert_stopword("la");
+
+        let tokenizer = builder.build();
+
+        assert_eq!(
+            tokenizer
+                .tokenize("le chat mange la souris")
+                .collect::<Vec<_>>(),
+            vec![w("chat"), w("mange"), w("souris")]
+        );
+
+        let tokenizer = WordTokenizerBuilder::new()
+            .stopwords(["chat", "souris"])
+            .build();
+
+        assert_eq!(
+            tokenizer
+                .tokenize("le chat mange la souris")
+                .collect::<Vec<_>>(),
+            vec![w("le"), w("mange"), w("la")]
         );
     }
 }
