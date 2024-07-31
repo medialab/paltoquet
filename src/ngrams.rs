@@ -87,12 +87,8 @@ where
 mod tests {
     use super::*;
 
-    fn ngrams(target: &Vec<&str>, n: usize) -> Vec<Vec<String>> {
-        target
-            .iter()
-            .ngrams(n)
-            .map(|gram| gram.into_iter().map(|s| s.to_string()).collect())
-            .collect()
+    fn ngrams<'a>(target: Vec<&'a str>, n: usize) -> Vec<Vec<&'a str>> {
+        target.into_iter().ngrams(n).collect()
     }
 
     #[test]
@@ -100,13 +96,13 @@ mod tests {
         let empty = Vec::<&str>::new();
         let no_grams = Vec::<Vec<String>>::new();
 
-        assert_eq!(ngrams(&empty, 2), no_grams);
+        assert_eq!(ngrams(empty, 2), no_grams);
     }
 
     #[test]
     #[should_panic]
     fn test_irrelvant_n() {
-        ngrams(&vec!["the", "cat"], 0);
+        ngrams(vec!["the", "cat"], 0);
     }
 
     #[test]
@@ -138,14 +134,8 @@ mod tests {
             ],
         ];
 
-        for (i, grams) in tests.iter().enumerate() {
-            assert_eq!(
-                ngrams(&sentence, i + 1),
-                grams
-                    .iter()
-                    .map(|gram| gram.into_iter().map(|s| s.to_string()).collect::<Vec<_>>())
-                    .collect::<Vec<_>>()
-            );
+        for (i, grams) in tests.into_iter().enumerate() {
+            assert_eq!(ngrams(sentence.clone(), i + 1), grams);
         }
     }
 }
