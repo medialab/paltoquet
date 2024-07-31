@@ -69,6 +69,17 @@ where
             }
         }
     }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self.deque.capacity() {
+            0 => (0, Some(0)),
+            1 => self.inner.size_hint(),
+            n => {
+                let (l, u) = self.inner.size_hint();
+                (l.saturating_sub(n - 1), u.map(|x| x.saturating_sub(n - 1)))
+            }
+        }
+    }
 }
 
 pub struct NGramsRange<T> {
