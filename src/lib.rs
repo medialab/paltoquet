@@ -1,4 +1,5 @@
 mod hashtags;
+mod ngrams;
 mod paragraphs;
 mod utils;
 mod words;
