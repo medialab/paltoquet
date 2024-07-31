@@ -90,7 +90,7 @@ pub struct NGramsRange<T> {
     current_iterator: Option<NGrams<std::vec::IntoIter<T>>>,
 }
 
-impl<T: Clone> NGramsRange<T> {
+impl<T> NGramsRange<T> {
     fn new<I>(range: RangeInclusive<usize>, inner: I) -> Self
     where
         I: Iterator<Item = T>,
