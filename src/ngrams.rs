@@ -161,6 +161,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::WordToken;
 
     fn ngrams<'a>(target: Vec<&'a str>, n: usize) -> Vec<Vec<&'a str>> {
         target.into_iter().ngrams(n).collect()
@@ -212,6 +213,23 @@ mod tests {
         for (i, grams) in tests.into_iter().enumerate() {
             assert_eq!(ngrams(sentence.clone(), i + 1), grams);
         }
+    }
+
+    #[test]
+    fn test_ngrams_word_tokens() {
+        let sentence = vec![
+            WordToken::word("the"),
+            WordToken::word("cat"),
+            WordToken::word("eats"),
+        ];
+
+        assert_eq!(
+            sentence.iter().ngrams(2).collect::<Vec<_>>(),
+            vec![
+                vec![&WordToken::word("the"), &WordToken::word("cat")],
+                vec![&WordToken::word("cat"), &WordToken::word("eats")]
+            ]
+        );
     }
 
     #[test]
