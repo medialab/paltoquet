@@ -1,4 +1,5 @@
 use std::collections::VecDeque;
+// use std::ops::RangeInclusive;
 
 pub struct NGrams<I: Iterator> {
     deque: VecDeque<I::Item>,
@@ -72,6 +73,7 @@ where
 
 pub trait NgramsIteratorExt<I: Iterator> {
     fn ngrams(self, n: usize) -> NGrams<I>;
+    // fn ngrams_range(self, range: RangeInclusive<usize>) -> impl Iterator<Item = I::Item>;
 }
 
 impl<I: Iterator> NgramsIteratorExt<I> for I
@@ -94,7 +96,7 @@ mod tests {
     #[test]
     fn test_empty_ngrams() {
         let empty = Vec::<&str>::new();
-        let no_grams = Vec::<Vec<String>>::new();
+        let no_grams = Vec::<Vec<&str>>::new();
 
         assert_eq!(ngrams(empty, 2), no_grams);
     }
