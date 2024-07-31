@@ -169,7 +169,7 @@ impl FromStr for WordTokenKind {
     }
 }
 
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug, Clone)]
 pub struct WordToken<'a> {
     pub kind: WordTokenKind,
     pub text: &'a str,
