@@ -8,10 +8,7 @@ pub fn ngrams_len(tokens: usize, n: usize) -> usize {
         return 0;
     }
 
-    match tokens.checked_sub(n - 1) {
-        None => 1,
-        Some(len) => len,
-    }
+    tokens.checked_sub(n - 1).unwrap_or(1)
 }
 
 pub fn ngrams_range_len(tokens: usize, range: RangeInclusive<usize>) -> usize {
@@ -30,20 +27,6 @@ pub fn ngrams_range_len(tokens: usize, range: RangeInclusive<usize>) -> usize {
     }
 
     v
-}
-
-fn ngrams_size_hint(size_hint: (usize, Option<usize>), n: usize) -> (usize, Option<usize>) {
-    match n {
-        0 => (0, Some(0)),
-        1 => size_hint,
-        _ => {
-            let (lower_bound, upper_bound) = size_hint;
-            (
-                ngrams_len(lower_bound, n),
-                upper_bound.map(|v| ngrams_len(v, n)),
-            )
-        }
-    }
 }
 
 pub struct NGrams<I: Iterator> {
@@ -116,7 +99,13 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        ngrams_size_hint(self.inner.size_hint(), self.deque.capacity())
+        let n = self.deque.capacity();
+        let (lower_bound, upper_bound) = self.inner.size_hint();
+
+        (
+            ngrams_len(lower_bound, n),
+            upper_bound.map(|v| ngrams_len(v, n)),
+        )
     }
 }
 
