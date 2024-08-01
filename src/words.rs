@@ -97,19 +97,23 @@ lazy_static! {
     static ref SIMPLE_PATTERNS_REGEX: Regex = {
         Regex::new_many(&SIMPLE_PATTERNS.iter().map(|(p, _)| *p).collect::<Vec<_>>()).unwrap()
     };
-    static ref APOSTROPHE_REGEXES: [Regex; 5] = {
-        [
+
+    static ref APOSTROPHE_REGEX: Regex = {
+        let patterns =
+            [
             // 'nt 'hui
-            Regex::new("(?i)^(aujourd['’]hui|\\p{Alpha}+n['’]t)").unwrap(),
+            "(?i)^(aujourd['’]hui|\\p{Alpha}+n['’]t)",
             // English shenanigans
-            Regex::new("(?i)^(['’](?:twas|tis|ll|re|ve|[dms]))\\b").unwrap(),
+            "(?i)^(['’](?:twas|tis|ll|re|ve|[dms]))\\b",
             // Roman articles
-            Regex::new(&format!("(?i)^((?:qu|[^{v}])['’])[{v}h#@]\\p{{Alpha}}*\\b", v=VOWELS)).unwrap(),
+            &format!("(?i)^((?:qu|[^{v}])['’])[{v}h#@]\\p{{Alpha}}*\\b", v=VOWELS),
             // English contractions
-            Regex::new("(?i)^(\\p{Alpha})['’](?:ll|re|ve|[dms])\\b").unwrap(),
+            "(?i)^(\\p{Alpha})['’](?:ll|re|ve|[dms])\\b",
             // Names like O'Hara and N'diaye
-            Regex::new(&format!("(?i)^((?:[^{v}]|O)['’]\\p{{Alpha}}+)\\b", v=VOWELS)).unwrap()
-        ]
+            &format!("(?i)^((?:[^{v}]|O)['’]\\p{{Alpha}}+)\\b", v=VOWELS)
+        ];
+
+        Regex::new_many(&patterns).unwrap()
     };
     static ref COMPOUND_WORD_REGEX: Regex = {
         Regex::new("^[\\p{Alpha}\\p{Digit}]+(?:[\\-_·][\\p{Alpha}\\p{Digit}'’]+)+").unwrap()
@@ -247,15 +251,13 @@ impl<'a> WordTokens<'a> {
     where
         'a: 'b,
     {
-        for pattern in APOSTROPHE_REGEXES.iter() {
-            let mut caps = pattern.create_captures();
-            pattern.captures(self.input, &mut caps);
+        let mut caps = APOSTROPHE_REGEX.create_captures();
+        APOSTROPHE_REGEX.captures(self.input, &mut caps);
 
-            if caps.is_match() {
-                let i = caps.get_group(1).unwrap().end;
+        if caps.is_match() {
+            let i = caps.get_group(1).unwrap().end;
 
-                return Some(self.split_at(i));
-            }
+            return Some(self.split_at(i));
         }
 
         None
