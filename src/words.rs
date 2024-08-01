@@ -319,8 +319,8 @@ impl<'a> From<&'a str> for WordTokens<'a> {
 pub struct WordTokenizer {
     stoplist_regex: Option<Regex>,
     kind_blacklist: EnumSet<WordTokenKind>,
-    min_token_len: Option<usize>,
-    max_token_len: Option<usize>,
+    min_token_char_count: Option<usize>,
+    max_token_char_count: Option<usize>,
 }
 
 impl WordTokenizer {
@@ -333,14 +333,14 @@ impl WordTokenizer {
             return false;
         }
 
-        if let Some(min) = self.min_token_len {
-            if token.text.len() < min {
+        if let Some(min) = self.min_token_char_count {
+            if token.text.chars().count() < min {
                 return false;
             }
         }
 
-        if let Some(max) = self.max_token_len {
-            if token.text.len() > max {
+        if let Some(max) = self.max_token_char_count {
+            if token.text.chars().count() > max {
                 return false;
             }
         }
@@ -379,8 +379,8 @@ impl WordTokenizer {
 pub struct WordTokenizerBuilder {
     stoplist: Vec<String>,
     kind_blacklist: EnumSet<WordTokenKind>,
-    min_token_len: Option<usize>,
-    max_token_len: Option<usize>,
+    min_token_char_count: Option<usize>,
+    max_token_char_count: Option<usize>,
 }
 
 impl WordTokenizerBuilder {
@@ -423,13 +423,13 @@ impl WordTokenizerBuilder {
         self
     }
 
-    pub fn min_token_len(mut self, min: usize) -> Self {
-        self.min_token_len = Some(min);
+    pub fn min_token_char_count(mut self, min: usize) -> Self {
+        self.min_token_char_count = Some(min);
         self
     }
 
-    pub fn max_token_len(mut self, max: usize) -> Self {
-        self.max_token_len = Some(max);
+    pub fn max_token_char_count(mut self, max: usize) -> Self {
+        self.max_token_char_count = Some(max);
         self
     }
 
@@ -456,8 +456,8 @@ impl WordTokenizerBuilder {
         WordTokenizer {
             stoplist_regex,
             kind_blacklist: self.kind_blacklist,
-            min_token_len: self.min_token_len,
-            max_token_len: self.max_token_len,
+            min_token_char_count: self.min_token_char_count,
+            max_token_char_count: self.max_token_char_count,
         }
     }
 }
@@ -1378,13 +1378,17 @@ mod tests {
 
     #[test]
     fn test_min_max_len() {
-        let tokenizer = WordTokenizerBuilder::new().min_token_len(3).build();
+        let tokenizer = WordTokenizerBuilder::new().min_token_char_count(3).build();
 
         assert_eq!(tokenizer.tokens("le chat"), vec![w("chat")]);
 
-        let tokenizer = WordTokenizerBuilder::new().max_token_len(2).build();
+        let tokenizer = WordTokenizerBuilder::new().max_token_char_count(2).build();
 
         assert_eq!(tokenizer.tokens("le chat"), vec![w("le")]);
+
+        let tokenizer = WordTokenizerBuilder::new().min_token_char_count(3).build();
+
+        assert_eq!(tokenizer.tokens("C’est bien!"), vec![w("est"), w("bien")]);
     }
 
     #[test]
