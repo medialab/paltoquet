@@ -8,7 +8,7 @@ use std::ops::{Range, RangeInclusive};
 // TODO: join/chunks?
 
 pub fn ngrams_len(tokens: usize, n: usize) -> usize {
-    if n < 1 {
+    if n < 1 || tokens == 0 {
         return 0;
     }
 
@@ -304,12 +304,20 @@ mod tests {
 
         assert_eq!(collect_ngrams(empty.clone(), 2), no_grams);
         assert_eq!(
+            empty.clone().into_iter().ngrams(2).size_hint(),
+            (0, Some(0))
+        );
+        assert_eq!(
             empty
                 .clone()
                 .into_iter()
                 .ngrams_range(1..=5)
                 .collect::<Vec<_>>(),
             no_grams
+        );
+        assert_eq!(
+            empty.clone().into_iter().ngrams_range(1..=5).size_hint(),
+            (0, Some(0))
         );
     }
 
@@ -429,6 +437,11 @@ mod tests {
             vec![vec![&"the", &"cat"]]
         );
         assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
+
+        assert_eq!(
+            vec!["chat"].iter().ngrams_range(1..=2).collect::<Vec<_>>(),
+            vec![vec![&"chat"]]
+        );
 
         assert_eq!(
             sentence.iter().ngrams_range(1..=2).collect::<Vec<_>>(),
