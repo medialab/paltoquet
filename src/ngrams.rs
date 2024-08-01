@@ -4,7 +4,6 @@ use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
 // TODO: test empty iterator
-// TODO: fix range when n < l
 // TODO: fix size_hint for range
 // TODO: try iterators
 // TODO: join/chunks?
@@ -142,7 +141,7 @@ where
         }
 
         let s = *self.range.start();
-        let e = *self.range.end();
+        let e = self.deque.len();
 
         self.window = Some(e - s..e);
     }
@@ -165,14 +164,14 @@ where
                 let next_n = n + 1;
 
                 // We reset
-                if next_n == *self.range.end() + 1 {
+                if next_n == self.deque.len() + 1 {
                     self.window = None;
                 }
                 // We advance to next n in range
                 else if self.first {
                     self.window = Some(0..next_n);
                 } else {
-                    let l = *self.range.end();
+                    let l = self.deque.len();
                     self.window = Some((l - next_n)..l);
                 }
             }
@@ -185,6 +184,22 @@ where
         } else {
             None
         }
+    }
+
+    fn flush_short(&mut self) -> Option<Vec<I::Item>> {
+        if self.deque.is_empty() {
+            return None;
+        }
+
+        self.window = None;
+
+        let mut buffer = Vec::with_capacity(self.deque.len());
+
+        while let Some(item) = self.deque.pop_front() {
+            buffer.push(item);
+        }
+
+        Some(buffer)
     }
 
     fn rotate(&mut self, next_item: I::Item) {
@@ -204,7 +219,14 @@ where
             // Initial fill
             if self.deque.len() < self.deque.capacity() {
                 match self.inner.next() {
-                    None => return self.flush(),
+                    None => {
+                        if self.deque.len() < *self.range.start() {
+                            return self.flush_short();
+                        }
+
+                        self.range = *self.range.start()..=self.deque.len();
+                        return self.flush();
+                    }
                     Some(item) => {
                         self.deque.push_back(item);
                         continue;
@@ -401,9 +423,17 @@ mod tests {
         );
         assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
 
-        // assert_eq!(
-        //     sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
-        //     Vec::<Vec<&&str>>::new()
-        // );
+        assert_eq!(
+            sentence.iter().ngrams_range(1..=2).collect::<Vec<_>>(),
+            vec![vec![&"the"], vec![&"cat"], vec![&"the", &"cat"]]
+        );
+        assert_eq!(
+            sentence.iter().ngrams_range(1..=3).collect::<Vec<_>>(),
+            vec![vec![&"the"], vec![&"cat"], vec![&"the", &"cat"]]
+        );
+        assert_eq!(
+            sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
+            vec![vec![&"the", &"cat"]]
+        );
     }
 }
