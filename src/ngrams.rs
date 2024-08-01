@@ -3,9 +3,6 @@
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
-// TODO: try iterators
-// TODO: join/chunks?
-
 pub fn ngrams_len(tokens: usize, n: usize) -> usize {
     if n < 1 || tokens == 0 {
         return 0;
