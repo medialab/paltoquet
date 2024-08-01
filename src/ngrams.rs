@@ -3,7 +3,6 @@
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
-// TODO: test empty iterator
 // TODO: fix size_hint for range
 // TODO: try iterators
 // TODO: join/chunks?
@@ -303,7 +302,15 @@ mod tests {
         let empty = Vec::<&str>::new();
         let no_grams = Vec::<Vec<&str>>::new();
 
-        assert_eq!(collect_ngrams(empty, 2), no_grams);
+        assert_eq!(collect_ngrams(empty.clone(), 2), no_grams);
+        assert_eq!(
+            empty
+                .clone()
+                .into_iter()
+                .ngrams_range(1..=5)
+                .collect::<Vec<_>>(),
+            no_grams
+        );
     }
 
     #[test]
