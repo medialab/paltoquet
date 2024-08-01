@@ -3,7 +3,6 @@
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
-// TODO: fix size_hint for range
 // TODO: try iterators
 // TODO: join/chunks?
 
@@ -16,6 +15,24 @@ pub fn ngrams_len(tokens: usize, n: usize) -> usize {
         None => 1,
         Some(len) => len,
     }
+}
+
+pub fn ngrams_range_len(tokens: usize, range: RangeInclusive<usize>) -> usize {
+    if tokens == 0 {
+        return 0;
+    }
+
+    if tokens < *range.start() {
+        return 1;
+    }
+
+    let mut v: usize = 0;
+
+    for n in range {
+        v += ngrams_len(tokens, n);
+    }
+
+    v
 }
 
 fn ngrams_size_hint(size_hint: (usize, Option<usize>), n: usize) -> (usize, Option<usize>) {
@@ -252,22 +269,14 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let mut current_sum = (0, None);
         let inner_size_hint = self.inner.size_hint();
 
-        for n in self.range.clone() {
-            let (lower_bound, upper_bound) = ngrams_size_hint(inner_size_hint, n);
-
-            current_sum.0 += lower_bound;
-
-            current_sum.1 = match (current_sum.1, upper_bound) {
-                (Some(x), Some(y)) => Some(x + y),
-                (None, Some(y)) => Some(y),
-                _ => None,
-            };
-        }
-
-        current_sum
+        (
+            ngrams_range_len(inner_size_hint.0, self.range.clone()),
+            inner_size_hint
+                .1
+                .map(|v| ngrams_range_len(v, self.range.clone())),
+        )
     }
 }
 
@@ -432,15 +441,21 @@ mod tests {
     fn test_less_tokens_than_n() {
         let sentence = vec!["the", "cat"];
 
+        // Normal
         assert_eq!(
             sentence.iter().ngrams(5).collect::<Vec<_>>(),
             vec![vec![&"the", &"cat"]]
         );
         assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
 
+        // Range
         assert_eq!(
             vec!["chat"].iter().ngrams_range(1..=2).collect::<Vec<_>>(),
             vec![vec![&"chat"]]
+        );
+        assert_eq!(
+            vec!["chat"].iter().ngrams_range(1..=2).size_hint(),
+            (1, Some(1))
         );
 
         assert_eq!(
@@ -448,12 +463,26 @@ mod tests {
             vec![vec![&"the"], vec![&"cat"], vec![&"the", &"cat"]]
         );
         assert_eq!(
+            sentence.iter().ngrams_range(1..=2).size_hint(),
+            (3, Some(3))
+        );
+
+        assert_eq!(
             sentence.iter().ngrams_range(1..=3).collect::<Vec<_>>(),
             vec![vec![&"the"], vec![&"cat"], vec![&"the", &"cat"]]
         );
         assert_eq!(
+            sentence.iter().ngrams_range(1..=3).size_hint(),
+            (3, Some(3))
+        );
+
+        assert_eq!(
             sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
             vec![vec![&"the", &"cat"]]
+        );
+        assert_eq!(
+            sentence.iter().ngrams_range(4..=5).size_hint(),
+            (1, Some(1))
         );
     }
 }
