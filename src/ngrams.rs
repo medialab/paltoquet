@@ -1,5 +1,29 @@
 use std::collections::VecDeque;
-use std::ops::RangeInclusive;
+use std::ops::{Range, RangeInclusive};
+
+// TODO: padding, and less than optimal count, padding affects size hint
+
+pub fn ngrams_len(tokens: usize, n: usize) -> usize {
+    if n < 1 {
+        return 0;
+    }
+
+    tokens.saturating_sub(n - 1)
+}
+
+fn ngrams_size_hint(size_hint: (usize, Option<usize>), n: usize) -> (usize, Option<usize>) {
+    match n {
+        0 => (0, Some(0)),
+        1 => size_hint,
+        _ => {
+            let (lower_bound, upper_bound) = size_hint;
+            (
+                lower_bound.saturating_sub(n - 1),
+                upper_bound.map(|v| v.saturating_sub(n - 1)),
+            )
+        }
+    }
+}
 
 pub struct NGrams<I: Iterator> {
     deque: VecDeque<I::Item>,
@@ -71,79 +95,157 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        match self.deque.capacity() {
-            0 => (0, Some(0)),
-            1 => self.inner.size_hint(),
-            n => {
-                let (l, u) = self.inner.size_hint();
-                (l.saturating_sub(n - 1), u.map(|x| x.saturating_sub(n - 1)))
-            }
-        }
+        ngrams_size_hint(self.inner.size_hint(), self.deque.capacity())
     }
 }
 
-pub struct NGramsRange<T> {
-    buffer: Vec<T>,
-    next_n: usize,
-    upper_bound: usize,
-    // TODO: genericize this type somehow?
-    current_iterator: Option<NGrams<std::vec::IntoIter<T>>>,
+pub struct NGramsRange<I: Iterator> {
+    deque: VecDeque<I::Item>,
+    range: RangeInclusive<usize>,
+    window: Option<Range<usize>>,
+    first: bool,
+    inner: I,
 }
 
-impl<T> NGramsRange<T> {
-    fn new<I>(range: RangeInclusive<usize>, inner: I) -> Self
-    where
-        I: Iterator<Item = T>,
-    {
+// TODO: comments
+impl<I: Iterator> NGramsRange<I>
+where
+    I::Item: Clone,
+{
+    fn new(range: RangeInclusive<usize>, inner: I) -> Self {
         if range.start() < &1 {
             panic!("cannot compute ngrams when n < 1");
         }
 
-        // NOTE: it must buffer the input into memory which is
-        // hardly optimal...
-        Self {
-            buffer: inner.collect(),
-            next_n: *range.start(),
-            upper_bound: *range.end(),
-            current_iterator: None,
+        let iterator = Self {
+            deque: VecDeque::with_capacity(*range.end()),
+            range: range.clone(),
+            window: Some(0..*range.start()),
+            first: true,
+            inner,
+        };
+
+        iterator
+    }
+
+    fn reset_window(&mut self) {
+        if self.first {
+            self.first = false;
         }
+
+        let s = *self.range.start();
+        let e = *self.range.end();
+
+        self.window = Some(e - s..e);
+    }
+
+    fn flush(&mut self) -> Option<Vec<I::Item>> {
+        if let Some(window) = &self.window {
+            let s = window.start;
+            let e = window.end;
+
+            let n = e - s;
+
+            let mut buffer = Vec::with_capacity(n);
+
+            for i in s..e {
+                buffer.push(self.deque[i].clone());
+            }
+
+            // We increase n and widen the window
+            if e == self.deque.len() {
+                let next_n = n + 1;
+
+                // We reset
+                if next_n == *self.range.end() + 1 {
+                    self.window = None;
+                }
+                // We advance to next n in range
+                else if self.first {
+                    self.window = Some(0..next_n);
+                } else {
+                    let l = *self.range.end();
+                    self.window = Some((l - next_n)..l);
+                }
+            }
+            // We slide the window forward
+            else {
+                self.window = Some((s + 1)..(e + 1));
+            }
+
+            Some(buffer)
+        } else {
+            None
+        }
+    }
+
+    fn rotate(&mut self, next_item: I::Item) {
+        self.deque.pop_front();
+        self.deque.push_back(next_item);
     }
 }
 
-impl<T: Clone> Iterator for NGramsRange<T> {
-    type Item = Vec<T>;
+impl<I: Iterator> Iterator for NGramsRange<I>
+where
+    I::Item: Clone,
+{
+    type Item = Vec<I::Item>;
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
-            match &mut self.current_iterator {
-                None => {
-                    if self.next_n > self.upper_bound {
-                        return None;
+            // Initial fill
+            if self.deque.len() < self.deque.capacity() {
+                match self.inner.next() {
+                    None => return self.flush(),
+                    Some(item) => {
+                        self.deque.push_back(item);
+                        continue;
                     }
+                };
+            }
 
-                    // TODO: not clone
-                    self.current_iterator =
-                        Some(NGrams::new(self.next_n, self.buffer.clone().into_iter()));
+            // We first check the window
+            if let Some(gram) = self.flush() {
+                return Some(gram);
+            }
 
-                    self.next_n += 1;
+            // The consume the inner iterator and we rotate
+            match self.inner.next() {
+                None => return self.flush(),
+                Some(item) => {
+                    self.reset_window();
+                    self.rotate(item);
 
                     continue;
                 }
-                Some(inner) => match inner.next() {
-                    Some(gram) => return Some(gram),
-                    None => {
-                        self.current_iterator = None;
-                        continue;
-                    }
-                },
             }
         }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let mut current_sum = (0, None);
+        let inner_size_hint = self.inner.size_hint();
+
+        for n in self.range.clone() {
+            let (lower_bound, upper_bound) = ngrams_size_hint(inner_size_hint, n);
+
+            current_sum.0 += lower_bound;
+
+            // TODO: there is something fishy here
+            current_sum.1 = match (current_sum.1, upper_bound) {
+                (Some(x), Some(y)) => Some(x + y),
+                (None, Some(y)) => Some(y),
+                _ => None,
+            };
+        }
+
+        current_sum
     }
 }
 
 pub trait NgramsIteratorExt<I: Iterator> {
     fn ngrams(self, n: usize) -> NGrams<I>;
-    fn ngrams_range(self, range: RangeInclusive<usize>) -> NGramsRange<I::Item>;
+    fn ngrams_range(self, range: RangeInclusive<usize>) -> NGramsRange<I>;
 }
 
 impl<I: Iterator> NgramsIteratorExt<I> for I
@@ -153,7 +255,7 @@ where
     fn ngrams(self, n: usize) -> NGrams<I> {
         NGrams::new(n, self)
     }
-    fn ngrams_range(self, range: RangeInclusive<usize>) -> NGramsRange<I::Item> {
+    fn ngrams_range(self, range: RangeInclusive<usize>) -> NGramsRange<I> {
         NGramsRange::new(range, self)
     }
 }
@@ -163,7 +265,7 @@ mod tests {
     use super::*;
     use crate::WordToken;
 
-    fn ngrams<'a>(target: Vec<&'a str>, n: usize) -> Vec<Vec<&'a str>> {
+    fn collect_ngrams<'a>(target: Vec<&'a str>, n: usize) -> Vec<Vec<&'a str>> {
         target.into_iter().ngrams(n).collect()
     }
 
@@ -172,13 +274,13 @@ mod tests {
         let empty = Vec::<&str>::new();
         let no_grams = Vec::<Vec<&str>>::new();
 
-        assert_eq!(ngrams(empty, 2), no_grams);
+        assert_eq!(collect_ngrams(empty, 2), no_grams);
     }
 
     #[test]
     #[should_panic]
     fn test_irrelvant_n() {
-        ngrams(vec!["the", "cat"], 0);
+        collect_ngrams(vec!["the", "cat"], 0);
     }
 
     #[test]
@@ -211,7 +313,11 @@ mod tests {
         ];
 
         for (i, grams) in tests.into_iter().enumerate() {
-            assert_eq!(ngrams(sentence.clone(), i + 1), grams);
+            assert_eq!(
+                sentence.iter().ngrams(i + 1).size_hint(),
+                (grams.len(), Some(grams.len()))
+            );
+            assert_eq!(collect_ngrams(sentence.clone(), i + 1), grams);
         }
     }
 
@@ -241,21 +347,55 @@ mod tests {
             vec!["cat"],
             vec!["eats"],
             vec!["the"],
-            vec!["mouse"],
             vec!["the", "cat"],
             vec!["cat", "eats"],
             vec!["eats", "the"],
-            vec!["the", "mouse"],
             vec!["the", "cat", "eats"],
             vec!["cat", "eats", "the"],
-            vec!["eats", "the", "mouse"],
             vec!["the", "cat", "eats", "the"],
+            vec!["mouse"],
+            vec!["the", "mouse"],
+            vec!["eats", "the", "mouse"],
             vec!["cat", "eats", "the", "mouse"],
         ];
 
+        let grams = sentence
+            .clone()
+            .into_iter()
+            .ngrams_range(1..=4)
+            .collect::<Vec<_>>();
+
+        assert_eq!(grams, expected);
         assert_eq!(
-            sentence.into_iter().ngrams_range(1..=4).collect::<Vec<_>>(),
-            expected
+            sentence.clone().into_iter().ngrams_range(1..=4).size_hint(),
+            (14, Some(14))
         );
+
+        // Should produce same grams as non-range counterpart when range is one value
+        for n in 1..=4 {
+            assert_eq!(
+                sentence.iter().ngrams(n).collect::<Vec<_>>(),
+                sentence.iter().ngrams_range(n..=n).collect::<Vec<_>>()
+            );
+            assert_eq!(
+                sentence.iter().ngrams(n).size_hint(),
+                sentence.iter().ngrams_range(n..=n).size_hint()
+            );
+        }
     }
+
+    // #[test]
+    // fn test_less_tokens_than_n() {
+    //     let sentence = vec!["the", "cat"];
+
+    //     assert_eq!(
+    //         sentence.iter().ngrams(5).collect::<Vec<_>>(),
+    //         Vec::<Vec<&&str>>::new()
+    //     );
+
+    //     assert_eq!(
+    //         sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
+    //         Vec::<Vec<&&str>>::new()
+    //     );
+    // }
 }
