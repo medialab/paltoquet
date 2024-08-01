@@ -434,17 +434,18 @@ impl WordTokenizerBuilder {
         let mut stoplist_regex = None;
 
         if !self.stoplist.is_empty() {
-            let mut stoplist_pattern = String::from("(?i)(?:");
+            let mut stoplist_pattern = String::from("(?i)^(?:");
 
             stoplist_pattern.push_str(
                 &self
                     .stoplist
                     .iter()
+                    .filter(|s| !s.is_empty())
                     .map(|s| regex_escape(s))
                     .collect::<Vec<_>>()
                     .join("|"),
             );
-            stoplist_pattern.push(')');
+            stoplist_pattern.push_str(")$");
 
             stoplist_regex = Some(Regex::new(&stoplist_pattern).unwrap());
         }
@@ -1336,6 +1337,7 @@ mod tests {
         let mut builder = WordTokenizerBuilder::new();
         builder.insert_stopword("le");
         builder.insert_stopword("la");
+        builder.insert_stopword("");
 
         let tokenizer = builder.build();
 
@@ -1343,6 +1345,8 @@ mod tests {
             tokenizer.tokens("le chat mange la souris"),
             vec![w("chat"), w("mange"), w("souris")]
         );
+
+        assert_eq!(tokenizer.tokens("leb ble"), vec![w("leb"), w("ble")]);
 
         let tokenizer = WordTokenizerBuilder::new()
             .stopwords(["chat", "souris"])
