@@ -1,7 +1,9 @@
+// NOTE: our ngrams are not padded, and return the sequence as
+// a gram when n > l.
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
-// TODO: fix size_hint when n < l
+// TODO: test empty iterator
 // TODO: fix range when n < l
 // TODO: fix size_hint for range
 // TODO: try iterators
@@ -12,7 +14,10 @@ pub fn ngrams_len(tokens: usize, n: usize) -> usize {
         return 0;
     }
 
-    tokens.saturating_sub(n - 1)
+    match tokens.checked_sub(n - 1) {
+        None => 1,
+        Some(len) => len,
+    }
 }
 
 fn ngrams_size_hint(size_hint: (usize, Option<usize>), n: usize) -> (usize, Option<usize>) {
@@ -22,8 +27,8 @@ fn ngrams_size_hint(size_hint: (usize, Option<usize>), n: usize) -> (usize, Opti
         _ => {
             let (lower_bound, upper_bound) = size_hint;
             (
-                lower_bound.saturating_sub(n - 1),
-                upper_bound.map(|v| v.saturating_sub(n - 1)),
+                ngrams_len(lower_bound, n),
+                upper_bound.map(|v| ngrams_len(v, n)),
             )
         }
     }
@@ -394,7 +399,7 @@ mod tests {
             sentence.iter().ngrams(5).collect::<Vec<_>>(),
             vec![vec![&"the", &"cat"]]
         );
-        // assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
+        assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
 
         // assert_eq!(
         //     sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
