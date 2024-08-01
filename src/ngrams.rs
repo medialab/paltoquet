@@ -1,7 +1,11 @@
 use std::collections::VecDeque;
 use std::ops::{Range, RangeInclusive};
 
-// TODO: padding, and less than optimal count, padding affects size hint
+// TODO: fix size_hint when n < l
+// TODO: fix range when n < l
+// TODO: fix size_hint for range
+// TODO: try iterators
+// TODO: join/chunks?
 
 pub fn ngrams_len(tokens: usize, n: usize) -> usize {
     if n < 1 {
@@ -107,7 +111,6 @@ pub struct NGramsRange<I: Iterator> {
     inner: I,
 }
 
-// TODO: comments
 impl<I: Iterator> NGramsRange<I>
 where
     I::Item: Clone,
@@ -231,7 +234,6 @@ where
 
             current_sum.0 += lower_bound;
 
-            // TODO: there is something fishy here
             current_sum.1 = match (current_sum.1, upper_bound) {
                 (Some(x), Some(y)) => Some(x + y),
                 (None, Some(y)) => Some(y),
@@ -384,18 +386,19 @@ mod tests {
         }
     }
 
-    // #[test]
-    // fn test_less_tokens_than_n() {
-    //     let sentence = vec!["the", "cat"];
+    #[test]
+    fn test_less_tokens_than_n() {
+        let sentence = vec!["the", "cat"];
 
-    //     assert_eq!(
-    //         sentence.iter().ngrams(5).collect::<Vec<_>>(),
-    //         Vec::<Vec<&&str>>::new()
-    //     );
+        assert_eq!(
+            sentence.iter().ngrams(5).collect::<Vec<_>>(),
+            vec![vec![&"the", &"cat"]]
+        );
+        // assert_eq!(sentence.iter().ngrams(5).size_hint(), (1, Some(1)));
 
-    //     assert_eq!(
-    //         sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
-    //         Vec::<Vec<&&str>>::new()
-    //     );
-    // }
+        // assert_eq!(
+        //     sentence.iter().ngrams_range(4..=5).collect::<Vec<_>>(),
+        //     Vec::<Vec<&&str>>::new()
+        // );
+    }
 }
