@@ -30,6 +30,7 @@ pub fn ngrams_range_len(tokens: usize, range: RangeInclusive<usize>) -> usize {
 }
 
 pub struct NGrams<I: Iterator> {
+    n: usize,
     deque: VecDeque<I::Item>,
     inner: I,
 }
@@ -44,6 +45,7 @@ where
         }
 
         Self {
+            n,
             deque: VecDeque::with_capacity(n),
             inner,
         }
@@ -88,7 +90,7 @@ where
             match self.inner.next() {
                 None => return self.flush(),
                 Some(item) => {
-                    if self.deque.len() < self.deque.capacity() {
+                    if self.deque.len() < self.n {
                         self.deque.push_back(item);
                     } else {
                         return Some(self.rotate(item));
@@ -99,12 +101,11 @@ where
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
-        let n = self.deque.capacity();
         let (lower_bound, upper_bound) = self.inner.size_hint();
 
         (
-            ngrams_len(lower_bound, n),
-            upper_bound.map(|v| ngrams_len(v, n)),
+            ngrams_len(lower_bound, self.n),
+            upper_bound.map(|v| ngrams_len(v, self.n)),
         )
     }
 }
@@ -219,7 +220,7 @@ where
     fn next(&mut self) -> Option<Self::Item> {
         loop {
             // Initial fill
-            if self.deque.len() < self.deque.capacity() {
+            if self.deque.len() < *self.range.end() {
                 match self.inner.next() {
                     None => {
                         if self.deque.len() < *self.range.start() {
