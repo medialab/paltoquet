@@ -287,7 +287,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::WordToken;
+    use crate::tokenizers::WordToken;
 
     fn collect_ngrams<'a>(target: Vec<&'a str>, n: usize) -> Vec<Vec<&'a str>> {
         target.into_iter().ngrams(n).collect()
