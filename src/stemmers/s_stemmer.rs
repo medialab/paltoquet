@@ -21,7 +21,7 @@ pub fn s_stemmer(string: &str) -> Cow<str> {
 
     match chars.next_back() {
         Some(c) if c == 'u' || c == 's' => return Cow::Borrowed(string),
-        Some(c) if c == 'e' => match (chars.next_back(), chars.next_back()) {
+        Some('e') => match (chars.next_back(), chars.next_back()) {
             (Some(c1), Some(c2)) if c1 == 'i' && (c2 != 'a' && c2 != 'e') => {
                 return Cow::Owned({
                     let mut s = String::with_capacity(string.len() - 2);
