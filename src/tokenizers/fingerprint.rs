@@ -16,11 +16,11 @@ impl FingerprintTokenizer {
                 unidecode(
                     &token
                         .trim()
-                        .to_lowercase()
                         .chars()
                         .filter(|c| c.is_ascii_whitespace() || c.is_ascii_alphanumeric())
                         .collect::<String>(),
                 )
+                .to_ascii_lowercase()
             })
             .filter(|s| !s.is_empty())
             .collect();
