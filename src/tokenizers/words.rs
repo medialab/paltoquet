@@ -30,6 +30,8 @@ use regex_automata::meta::Regex;
 use regex_syntax::escape as regex_escape;
 
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
+static CONSONANTS_APOSTROPHE: &str = "cdjlmnst";
+static LETTERS_START_NAME: &str = "dlmno";
 
 // NOTE: order IS important
 static SIMPLE_PATTERNS: [(&str, WordTokenKind); 9] = [
@@ -105,11 +107,11 @@ lazy_static! {
             // English shenanigans
             "(?i)^(['’](?:twas|tis|ll|re|ve|[dms]))\\b",
             // Roman articles
-            &format!("(?i)^((?:qu|[^{v}])['’])[{v}h#@]\\p{{Alpha}}*\\b", v=VOWELS),
+            &format!("(?i)^((?:qu|[{c}])['’])[{v}h#@]\\p{{Alpha}}*\\b", c=CONSONANTS_APOSTROPHE, v=VOWELS),
             // English contractions
             "(?i)^(\\p{Alpha})['’](?:ll|re|ve|[dms])\\b",
             // Names like O'Hara and N'diaye
-            &format!("(?i)^((?:[^{v}]|O)['’]\\p{{Alpha}}+)\\b", v=VOWELS)
+            &format!("(?i)^((?:[{l}])['’]\\p{{Alpha}}+)\\b", l=LETTERS_START_NAME)
         ];
 
         Regex::new_many(&patterns).unwrap()
@@ -1227,6 +1229,18 @@ mod tests {
             (
                 "митинг Μεγάλη זאג",
                 vec![w("митинг"), w("Μεγάλη"), w("זאג")]
+            ),
+            (
+                "\"'",
+                vec![p("\""), p("'")]
+            ),
+            (
+                ".'To",
+                vec![p("."), p("'"), w("To")]
+            ),
+            (
+                "\"'Diaye",
+                vec![p("\""), p("'"), w("Diaye")]
             )
         ];
 
