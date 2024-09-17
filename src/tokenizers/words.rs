@@ -131,6 +131,21 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
+// #[inline]
+// fn is_vowel(c: char) -> bool {
+//     false
+// }
+
+// #[inline]
+// fn is_consonant(c: char) -> bool {
+//     false
+// }
+
+// #[inline]
+// fn is_junk(string: &str) -> bool {
+//     false
+// }
+
 #[derive(Debug, EnumSetType)]
 pub enum WordTokenKind {
     Word,
@@ -1422,4 +1437,10 @@ mod tests {
             vec![w("le"), w("chat"), w("un"), w("2")]
         );
     }
+
+    // #[test]
+    // fn test_is_vowel_consonant() {}
+
+    // #[test]
+    // fn test_is_junk() {}
 }
