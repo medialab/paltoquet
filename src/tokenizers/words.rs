@@ -118,7 +118,7 @@ lazy_static! {
     };
 
     static ref COMPOUND_WORD_REGEX: Regex = {
-        Regex::new("^[\\p{Alpha}\\p{Digit}]+(?:[\\-_·]+[\\p{Alpha}\\p{Digit}]+(['’][\\p{Alpha}\\p{Digit}]+)?)+").unwrap()
+        Regex::new("^[\\p{Alpha}\\p{Digit}]+(?:[\\-_·]+[\\p{Alpha}\\p{Digit}]['’\\p{Alpha}\\p{Digit}]*)+").unwrap()
     };
 
     static ref FRENCH_ILLEGAL_COMPOUND_REGEX: Regex = {
