@@ -23,6 +23,7 @@
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
+use std::cmp;
 
 use enumset::{EnumSet, EnumSetType};
 use lazy_static::lazy_static;
@@ -131,20 +132,45 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
-// #[inline]
-// fn is_vowel(c: char) -> bool {
-//     false
-// }
+#[inline]
+fn is_vowel(c: char) -> bool {
+    VOWELS.contains(*&c)
+}
 
-// #[inline]
-// fn is_consonant(c: char) -> bool {
-//     false
-// }
+#[inline]
+fn is_consonant(c: char) -> bool {
+    !(VOWELS.contains(*&c)) & c.is_alphabetic()
+}
 
-// #[inline]
-// fn is_junk(string: &str) -> bool {
-//     false
-// }
+#[inline]
+fn is_junk(string: &str) -> bool {
+    let mut tab: [[i32; 2]; 3] = [[0i32; 2]; 3];
+    let mut tmp_c = ' ';
+    let mut cpt_c = 0;
+    for c in string.chars() {
+        if cpt_c > 2 {
+            break;
+        }
+        if tmp_c == c {
+            cpt_c += 1;
+        } else {
+            tmp_c = c;
+            cpt_c = 1;
+        }
+        if is_vowel(c) {
+            tab[1][0] = 0;
+            tab[0][0] += 1;
+            tab[0][1] = cmp::max(tab[0][1], tab[0][0]);
+        } else if is_consonant(c) {
+            tab[0][0] = 0;
+            tab[1][0] += 1;
+            tab[1][1] = cmp::max(tab[1][1], tab[1][0]);
+        } else {
+            tab[2][0] += 1;
+        }
+    }
+    tab[0][1] > 6 || tab[1][1] > 7 || string.len() > 30 || (tab[0][1] == 0 && tab[2][0] == 0) || cpt_c > 2
+}
 
 #[derive(Debug, EnumSetType)]
 pub enum WordTokenKind {
@@ -1438,9 +1464,36 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_is_vowel_consonant() {}
+    #[test]
+    fn test_is_vowel_consonant() {
+        let vow = 'à';
+        assert_eq!(is_vowel(vow), true);
+        assert_eq!(is_consonant(vow), false);
 
-    // #[test]
-    // fn test_is_junk() {}
+        let cons = 'F';
+        assert_eq!(is_vowel(cons), false);
+        assert_eq!(is_consonant(cons), true);
+    }
+
+    #[test]
+    fn test_is_junk() {
+        let mut chaine = "aeaeaea";
+        assert_eq!(is_junk(chaine), true);
+        chaine = "aeaeae";
+        assert_eq!(is_junk(chaine), false);
+        chaine = "cbcbcbcb";
+        assert_eq!(is_junk(chaine), true);
+        chaine = "paltoquet";
+        assert_eq!(is_junk(chaine), false);
+        chaine = "azazazazazazazazazazazazazazazazazazazaz";
+        assert_eq!(is_junk(chaine), true);
+        chaine = "d";
+        assert_eq!(is_junk(chaine), true);
+        chaine = "d'";
+        assert_eq!(is_junk(chaine), false);
+        chaine = "créé";
+        assert_eq!(is_junk(chaine), false);
+        let chaine = "creee";
+        assert_eq!(is_junk(chaine), true);
+    }
 }
