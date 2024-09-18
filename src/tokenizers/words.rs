@@ -132,52 +132,68 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
 }
 
 #[inline]
-fn is_vowel(c: char) -> bool {
+pub fn is_vowel(c: char) -> bool {
     VOWELS.contains(c)
 }
 
 #[inline]
-fn is_consonant(c: char) -> bool {
+pub fn is_consonant(c: char) -> bool {
     !VOWELS.contains(c) && c.is_alphabetic()
 }
 
-fn is_junk(string: &str) -> bool {
+// A token can be considered as junk if:
+//   1. it is too long to be a plausible word (> 30 bytes)
+//   2. it has more than 3 consecutive identical letters
+//   3. has more than 7 consecutive consonants
+//   4. has more than 6 consecutive vowels
+//   5. has no vowels (except stuff like "l'" or "qu'")
+pub fn is_junk(string: &str) -> bool {
+    // Word too long
     if string.len() > 30 {
         return true;
     }
-    let mut tab_vowels: [u8; 2] = [0u8; 2];
-    let mut tab_consonants: [u8; 2] = [0u8; 2];
-    let mut punct = 0;
-    let mut last_char: Option<char> = None;
-    let mut count = 1;
+
+    let mut total_vowel_count: u8 = 0;
+    let mut consecutive_vowel_count: u8 = 0;
+    let mut consecutive_consonant_count: u8 = 0;
+    let mut has_punct = false;
+    let mut last_char_opt: Option<(char, usize)> = None;
+
     for c in string.chars() {
-        if last_char == Some(c){
-            count += 1;
+        if let Some((last_c, count)) = &mut last_char_opt {
+            if c != *last_c {
+                *last_c = c;
+            } else if *count == 3 {
+                // Too much consecutive identical letters
+                return true;
+            } else {
+                *count += 1;
+            }
         } else {
-            count = 1;
-            last_char = Some(c);
-        }
-        if count > 2 {
-            return true
+            last_char_opt = Some((c, 1));
         }
 
         if is_vowel(c) {
-            tab_consonants[0] = 0;
-            tab_vowels[0] += 1;
-            tab_vowels[1] = tab_vowels[1].max(tab_vowels[0]);
+            consecutive_consonant_count = 0;
+            total_vowel_count = total_vowel_count.saturating_add(1);
+            consecutive_vowel_count += 1;
         } else if c.is_alphabetic() {
-            tab_vowels[0] = 0;
-            tab_consonants[0] += 1;
-            tab_consonants[1] = tab_consonants[1].max(tab_consonants[0]);
-
+            consecutive_vowel_count = 0;
+            consecutive_consonant_count += 1;
         } else {
-            punct += 1;
+            consecutive_consonant_count = 0;
+            consecutive_vowel_count = 0;
+            has_punct = true;
         }
-        if tab_vowels[1] > 6 || tab_consonants[1] > 7 {
+
+        // Too much consecutive vowels or consonants
+        if consecutive_vowel_count > 6 || consecutive_consonant_count > 7 {
             return true;
         }
     }
-    tab_vowels[1] == 0 && punct == 0
+
+    // No vowels?
+    total_vowel_count == 0 && !has_punct
 }
 
 #[derive(Debug, EnumSetType)]
@@ -1485,14 +1501,22 @@ mod tests {
 
     #[test]
     fn test_is_junk() {
-        assert_eq!(is_junk("aeaeaea"), true);
-        assert_eq!(is_junk("aeaeae"), false);
-        assert_eq!(is_junk("cbcbcbcb"), true);
-        assert_eq!(is_junk("paltoquet"), false);
-        assert_eq!(is_junk("azazazazazazazazazazazazazazazazazazaz"), true);
-        assert_eq!(is_junk("d"), true);
-        assert_eq!(is_junk("d'"), false);
-        assert_eq!(is_junk("créé"), false);
-        assert_eq!(is_junk("creee"), true);
+        let tests = [
+            ("aeaeaea", true),
+            ("aeaeae", false),
+            ("cbcbcbcb", true),
+            ("paltoquet", false),
+            ("azazazazazazazazazazazazazazazazazazaz", true),
+            ("d", true),
+            ("d'", false),
+            ("créé", false),
+            ("créée", false),
+            ("creee", false),
+            ("creeee", true),
+        ];
+
+        for (string, expected) in tests {
+            assert_eq!(is_junk(string), expected);
+        }
     }
 }
