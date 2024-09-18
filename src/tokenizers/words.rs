@@ -23,7 +23,6 @@
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
-use std::cmp;
 
 use enumset::{EnumSet, EnumSetType};
 use lazy_static::lazy_static;
@@ -134,41 +133,51 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
 
 #[inline]
 fn is_vowel(c: char) -> bool {
-    VOWELS.contains(*&c)
+    VOWELS.contains(c)
 }
 
 #[inline]
 fn is_consonant(c: char) -> bool {
-    !(VOWELS.contains(*&c)) & c.is_alphabetic()
+    !VOWELS.contains(c) && c.is_alphabetic()
 }
 
-#[inline]
 fn is_junk(string: &str) -> bool {
-    let mut tab: [[i32; 2]; 3] = [[0i32; 2]; 3];
-    let mut tmp_c = String::new();
+    if string.len() > 30 {
+        return true;
+    }
+    let mut tab_vowels: [u8; 2] = [0u8; 2];
+    let mut tab_consonants: [u8; 2] = [0u8; 2];
+    let mut punct = 0;
+    let mut last_char: Option<char> = None;
+    let mut count = 1;
     for c in string.chars() {
-        if tmp_c.chars().count() > 2 {
-            break;
-        }
-        if tmp_c.len() == 0 || tmp_c.chars().next().unwrap() == c {
-            tmp_c.push(c);
+        if last_char == Some(c){
+            count += 1;
         } else {
-            tmp_c.clear();
-            tmp_c.push(c);
+            count = 1;
+            last_char = Some(c);
         }
+        if count > 2 {
+            return true
+        }
+
         if is_vowel(c) {
-            tab[1][0] = 0;
-            tab[0][0] += 1;
-            tab[0][1] = cmp::max(tab[0][1], tab[0][0]);
-        } else if is_consonant(c) {
-            tab[0][0] = 0;
-            tab[1][0] += 1;
-            tab[1][1] = cmp::max(tab[1][1], tab[1][0]);
+            tab_consonants[0] = 0;
+            tab_vowels[0] += 1;
+            tab_vowels[1] = tab_vowels[1].max(tab_vowels[0]);
+        } else if c.is_alphabetic() {
+            tab_vowels[0] = 0;
+            tab_consonants[0] += 1;
+            tab_consonants[1] = tab_consonants[1].max(tab_consonants[0]);
+
         } else {
-            tab[2][0] += 1;
+            punct += 1;
+        }
+        if tab_vowels[1] > 6 || tab_consonants[1] > 7 {
+            return true;
         }
     }
-    tab[0][1] > 6 || tab[1][1] > 7 || string.len() > 30 || (tab[0][1] == 0 && tab[2][0] == 0) || tmp_c.chars().count() > 2
+    tab_vowels[1] == 0 && punct == 0
 }
 
 #[derive(Debug, EnumSetType)]
@@ -1465,34 +1474,25 @@ mod tests {
 
     #[test]
     fn test_is_vowel_consonant() {
-        let vow = 'à';
-        assert_eq!(is_vowel(vow), true);
-        assert_eq!(is_consonant(vow), false);
+        let vowel = 'à';
+        assert_eq!(is_vowel(vowel), true);
+        assert_eq!(is_consonant(vowel), false);
 
-        let cons = 'F';
-        assert_eq!(is_vowel(cons), false);
-        assert_eq!(is_consonant(cons), true);
+        let consonant = 'F';
+        assert_eq!(is_vowel(consonant), false);
+        assert_eq!(is_consonant(consonant), true);
     }
 
     #[test]
     fn test_is_junk() {
-        let mut chaine = "aeaeaea";
-        assert_eq!(is_junk(chaine), true);
-        chaine = "aeaeae";
-        assert_eq!(is_junk(chaine), false);
-        chaine = "cbcbcbcb";
-        assert_eq!(is_junk(chaine), true);
-        chaine = "paltoquet";
-        assert_eq!(is_junk(chaine), false);
-        chaine = "azazazazazazazazazazazazazazazazazazazaz";
-        assert_eq!(is_junk(chaine), true);
-        chaine = "d";
-        assert_eq!(is_junk(chaine), true);
-        chaine = "d'";
-        assert_eq!(is_junk(chaine), false);
-        chaine = "créé";
-        assert_eq!(is_junk(chaine), false);
-        let chaine = "creee";
-        assert_eq!(is_junk(chaine), true);
+        assert_eq!(is_junk("aeaeaea"), true);
+        assert_eq!(is_junk("aeaeae"), false);
+        assert_eq!(is_junk("cbcbcbcb"), true);
+        assert_eq!(is_junk("paltoquet"), false);
+        assert_eq!(is_junk("azazazazazazazazazazazazazazazazazazaz"), true);
+        assert_eq!(is_junk("d"), true);
+        assert_eq!(is_junk("d'"), false);
+        assert_eq!(is_junk("créé"), false);
+        assert_eq!(is_junk("creee"), true);
     }
 }
