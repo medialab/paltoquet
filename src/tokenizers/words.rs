@@ -131,20 +131,54 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
-// #[inline]
-// fn is_vowel(c: char) -> bool {
-//     false
-// }
+#[inline]
+fn is_vowel(c: char) -> bool {
+    VOWELS.contains(c)
+}
 
-// #[inline]
-// fn is_consonant(c: char) -> bool {
-//     false
-// }
+#[inline]
+fn is_consonant(c: char) -> bool {
+    !VOWELS.contains(c) && c.is_alphabetic()
+}
 
-// #[inline]
-// fn is_junk(string: &str) -> bool {
-//     false
-// }
+fn is_junk(string: &str) -> bool {
+    if string.len() > 30 {
+        return true;
+    }
+    let mut tab_vowels: [u8; 2] = [0u8; 2];
+    let mut tab_consonants: [u8; 2] = [0u8; 2];
+    let mut punct = 0;
+    let mut last_char: Option<char> = None;
+    let mut count = 1;
+    for c in string.chars() {
+        if last_char == Some(c){
+            count += 1;
+        } else {
+            count = 1;
+            last_char = Some(c);
+        }
+        if count > 2 {
+            return true
+        }
+
+        if is_vowel(c) {
+            tab_consonants[0] = 0;
+            tab_vowels[0] += 1;
+            tab_vowels[1] = tab_vowels[1].max(tab_vowels[0]);
+        } else if c.is_alphabetic() {
+            tab_vowels[0] = 0;
+            tab_consonants[0] += 1;
+            tab_consonants[1] = tab_consonants[1].max(tab_consonants[0]);
+
+        } else {
+            punct += 1;
+        }
+        if tab_vowels[1] > 6 || tab_consonants[1] > 7 {
+            return true;
+        }
+    }
+    tab_vowels[1] == 0 && punct == 0
+}
 
 #[derive(Debug, EnumSetType)]
 pub enum WordTokenKind {
@@ -1438,9 +1472,27 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn test_is_vowel_consonant() {}
+    #[test]
+    fn test_is_vowel_consonant() {
+        let vowel = 'à';
+        assert_eq!(is_vowel(vowel), true);
+        assert_eq!(is_consonant(vowel), false);
 
-    // #[test]
-    // fn test_is_junk() {}
+        let consonant = 'F';
+        assert_eq!(is_vowel(consonant), false);
+        assert_eq!(is_consonant(consonant), true);
+    }
+
+    #[test]
+    fn test_is_junk() {
+        assert_eq!(is_junk("aeaeaea"), true);
+        assert_eq!(is_junk("aeaeae"), false);
+        assert_eq!(is_junk("cbcbcbcb"), true);
+        assert_eq!(is_junk("paltoquet"), false);
+        assert_eq!(is_junk("azazazazazazazazazazazazazazazazazazaz"), true);
+        assert_eq!(is_junk("d"), true);
+        assert_eq!(is_junk("d'"), false);
+        assert_eq!(is_junk("créé"), false);
+        assert_eq!(is_junk("creee"), true);
+    }
 }
