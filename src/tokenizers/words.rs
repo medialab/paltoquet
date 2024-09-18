@@ -248,10 +248,25 @@ pub struct WordToken<'a> {
 }
 
 impl<'a> WordToken<'a> {
+    pub fn new(text: &'a str, kind: WordTokenKind) -> Self {
+        Self { kind, text }
+    }
+
     pub fn word(text: &'a str) -> Self {
         Self {
             kind: WordTokenKind::Word,
             text,
+        }
+    }
+
+    pub fn to_pair(&self) -> (String, WordTokenKind) {
+        (self.text.to_string(), self.kind)
+    }
+
+    pub fn is_junk(&self) -> bool {
+        match self.kind {
+            WordTokenKind::Word => is_junk(self.text),
+            _ => false,
         }
     }
 }
@@ -388,6 +403,7 @@ pub struct WordTokenizer {
     kind_blacklist: EnumSet<WordTokenKind>,
     min_token_char_count: Option<usize>,
     max_token_char_count: Option<usize>,
+    filter_junk: bool,
 }
 
 impl WordTokenizer {
@@ -416,6 +432,10 @@ impl WordTokenizer {
             if pattern.is_match(token.text) {
                 return false;
             }
+        }
+
+        if self.filter_junk && token.is_junk() {
+            return false;
         }
 
         true
@@ -448,6 +468,7 @@ pub struct WordTokenizerBuilder {
     kind_blacklist: EnumSet<WordTokenKind>,
     min_token_char_count: Option<usize>,
     max_token_char_count: Option<usize>,
+    filter_junk: bool,
 }
 
 impl WordTokenizerBuilder {
@@ -500,6 +521,11 @@ impl WordTokenizerBuilder {
         self
     }
 
+    pub fn filter_junk(mut self) -> Self {
+        self.filter_junk = true;
+        self
+    }
+
     pub fn build(self) -> WordTokenizer {
         let mut stoplist_regex = None;
 
@@ -525,6 +551,7 @@ impl WordTokenizerBuilder {
             kind_blacklist: self.kind_blacklist,
             min_token_char_count: self.min_token_char_count,
             max_token_char_count: self.max_token_char_count,
+            filter_junk: self.filter_junk,
         }
     }
 }
@@ -1476,6 +1503,16 @@ mod tests {
         let tokenizer = WordTokenizerBuilder::new().min_token_char_count(3).build();
 
         assert_eq!(tokenizer.tokens("C’est bien!"), vec![w("est"), w("bien")]);
+    }
+
+    #[test]
+    fn test_filter_junk() {
+        let tokenizer = WordTokenizerBuilder::new().filter_junk().build();
+
+        assert_eq!(
+            tokenizer.tokens("le chat oufehfhhhhhhhh"),
+            vec![w("le"), w("chat")]
+        );
     }
 
     #[test]
