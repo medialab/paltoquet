@@ -145,17 +145,16 @@ fn is_consonant(c: char) -> bool {
 #[inline]
 fn is_junk(string: &str) -> bool {
     let mut tab: [[i32; 2]; 3] = [[0i32; 2]; 3];
-    let mut tmp_c = ' ';
-    let mut cpt_c = 0;
+    let mut tmp_c = String::new();
     for c in string.chars() {
-        if cpt_c > 2 {
+        if tmp_c.chars().count() > 2 {
             break;
         }
-        if tmp_c == c {
-            cpt_c += 1;
+        if tmp_c.len() == 0 || tmp_c.chars().next().unwrap() == c {
+            tmp_c.push(c);
         } else {
-            tmp_c = c;
-            cpt_c = 1;
+            tmp_c.clear();
+            tmp_c.push(c);
         }
         if is_vowel(c) {
             tab[1][0] = 0;
@@ -169,7 +168,7 @@ fn is_junk(string: &str) -> bool {
             tab[2][0] += 1;
         }
     }
-    tab[0][1] > 6 || tab[1][1] > 7 || string.len() > 30 || (tab[0][1] == 0 && tab[2][0] == 0) || cpt_c > 2
+    tab[0][1] > 6 || tab[1][1] > 7 || string.len() > 30 || (tab[0][1] == 0 && tab[2][0] == 0) || tmp_c.chars().count() > 2
 }
 
 #[derive(Debug, EnumSetType)]
