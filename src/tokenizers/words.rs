@@ -124,6 +124,10 @@ lazy_static! {
     static ref FRENCH_ILLEGAL_COMPOUND_REGEX: Regex = {
         Regex::new("(?i)(?:-t)?-(?:je|tu|ils?|elles?|[nv]ous|on|les?|la|moi|toi|lui|y)$").unwrap()
     };
+
+    static ref VOWELS_REGEX: Regex = {
+        Regex::new(&format!("(?i)^[{}]", VOWELS)).unwrap()
+    };
 }
 
 #[inline]
@@ -132,13 +136,8 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
 }
 
 #[inline]
-pub fn is_vowel(c: char) -> bool {
-    VOWELS.contains(c)
-}
-
-#[inline]
-pub fn is_consonant(c: char) -> bool {
-    !VOWELS.contains(c) && c.is_alphabetic()
+pub fn starts_with_vowel(c: &str) -> bool {
+    VOWELS_REGEX.is_match(c)
 }
 
 // A token can be considered as junk if:
@@ -159,7 +158,7 @@ pub fn is_junk(string: &str) -> bool {
     let mut has_punct = false;
     let mut last_char_opt: Option<(char, usize)> = None;
 
-    for c in string.chars() {
+    for (i, c) in string.char_indices() {
         if let Some((last_c, count)) = &mut last_char_opt {
             if c != *last_c {
                 *last_c = c;
@@ -173,7 +172,7 @@ pub fn is_junk(string: &str) -> bool {
             last_char_opt = Some((c, 1));
         }
 
-        if is_vowel(c) {
+        if starts_with_vowel(&string[i..]) {
             consecutive_consonant_count = 0;
             total_vowel_count = total_vowel_count.saturating_add(1);
             consecutive_vowel_count += 1;
@@ -1526,14 +1525,11 @@ mod tests {
     }
 
     #[test]
-    fn test_is_vowel_consonant() {
-        let vowel = 'à';
-        assert_eq!(is_vowel(vowel), true);
-        assert_eq!(is_consonant(vowel), false);
-
-        let consonant = 'F';
-        assert_eq!(is_vowel(consonant), false);
-        assert_eq!(is_consonant(consonant), true);
+    fn test_starts_with_vowel() {
+        assert_eq!(starts_with_vowel("à"), true);
+        assert_eq!(starts_with_vowel("A"), true);
+        assert_eq!(starts_with_vowel("f"), false);
+        assert_eq!(starts_with_vowel("F"), false);
     }
 
     #[test]
@@ -1550,6 +1546,7 @@ mod tests {
             ("créée", false),
             ("creee", false),
             ("creeee", true),
+            ("TATA", false),
         ];
 
         for (string, expected) in tests {
