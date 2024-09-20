@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use lazy_static::lazy_static;
 use regex_automata::meta::Regex;
 
@@ -272,65 +274,54 @@ lazy_static! {
     static ref M: Regex = Regex::new(&format!("(?i)([{}]+[^{}]+)", VOWELS, VOWELS)).unwrap();
 }
 
-pub fn compute_m(string: &str) -> usize {
-    let mut mut_string = string.to_string();
-
-    if let Some(matched_part) = LC.find(mut_string.as_bytes()) {
+fn compute_m(mut string: &str) -> usize {
+    if let Some(matched_part) = LC.find(string) {
         let start = matched_part.end();
-        mut_string = mut_string[start..].to_string();
+        string = &string[start..];
     }
 
-    if let Some(matched_part) = TV.find(mut_string.as_bytes()) {
+    if let Some(matched_part) = TV.find(string) {
         let end = matched_part.start();
-        mut_string = mut_string[..end].to_string();
-    }
-    let mut count = 0;
-    let mut search_start = 0;
-
-    while let Some(matched) = M.find(mut_string[search_start..].as_bytes()) {
-        count += 1;
-        search_start += matched.end();
+        string = &string[..end];
     }
 
-    count
+    M.find_iter(string).count()
 }
 
-pub fn apply_rules<const N: usize>(rules: &Steps<N>, stem: &str) -> String {
-    for i in 0..rules.len() {
-        let min = rules[i].0;
-        let pattern: &'static str = rules[i].1;
-        let replacement: Option<&'static str> = rules[i].2;
+pub fn apply_rules<const N: usize>(rules: &Steps<N>, stem: String) -> String {
+    for (min, pattern, replacement) in rules {
+        if let Some(new_stem) = stem.strip_suffix(pattern) {
+            let new_stem = match replacement {
+                Some(r) => {
+                    let mut new_stem = new_stem.to_string();
+                    new_stem.push_str(r);
 
-        if stem.to_string().ends_with(pattern) {
-            let mut new_stem: String = stem.to_string();
-            let pattern_size: usize = pattern.chars().count();
-            let new_len = new_stem.len().saturating_sub(pattern_size);
-            match replacement {
-                Some(repl) => {
-                    new_stem = new_stem[0..new_len].to_string();
-                    new_stem.push_str(repl);
+                    Cow::Owned(new_stem)
                 }
-                None => {
-                    new_stem = new_stem[0..new_len].to_string();
-                }
-            }
+                None => Cow::Borrowed(new_stem),
+            };
+
             let m = compute_m(&new_stem);
-            if m <= min.try_into().unwrap() {
+
+            if m <= *min {
                 continue;
             }
-            return new_stem;
+
+            return new_stem.into_owned();
         }
     }
-    stem.to_string()
+
+    stem
 }
 
 pub fn carry_stemmer(word: &str) -> String {
-    let mut mut_word: String = word.to_lowercase();
-    mut_word = apply_rules(&STEPS1, &mut_word);
-    mut_word = apply_rules(&STEPS2, &mut_word);
-    mut_word = apply_rules(&STEPS3, &mut_word);
+    let mut word = word.to_lowercase();
 
-    mut_word
+    word = apply_rules(&STEPS1, word);
+    word = apply_rules(&STEPS2, word);
+    word = apply_rules(&STEPS3, word);
+
+    word
 }
 
 #[cfg(test)]
@@ -346,7 +337,7 @@ mod tests {
 
     #[test]
     fn test_apply_rules() {
-        assert_eq!(apply_rules(&STEPS1, "Tissaient"), "Tiss");
+        assert_eq!(apply_rules(&STEPS1, "Tissaient".to_string()), "Tiss");
     }
 
     #[test]
