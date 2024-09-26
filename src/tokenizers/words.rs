@@ -19,7 +19,7 @@
 ///   * It is not possible to keep apostrophes starting names
 ///   * Some inclusive writing schemes not relying on specific punctuation
 ///
-// Pointers:
+// References:
 // https://github.com/Yomguithereal/fog/blob/master/test/tokenizers/words_test.py
 // https://github.com/Yomguithereal/fog/blob/master/fog/tokenizers/words.py
 use std::str::FromStr;
