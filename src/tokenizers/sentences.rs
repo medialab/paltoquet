@@ -9,7 +9,7 @@ lazy_static! {
     static ref PUNCTUATION_REGEX: Regex =
         Regex::new("[.?!…]+(?:\\s[.?!…])*[«»„‟“”\")}\\]]?\\s+").unwrap();
     static ref LOOKBEHIND_REGEX: Regex =
-        Regex::new("(?i)\\b(?:[A-Z0-9]\\s*|prof|me?lle|mgr|mrs|mme|[djms]r|st|etc|ms?|pp?)$")
+        Regex::new("(?i)\\b(?:[A-Z0-9]\\s*|prof|me?lle|mgr|mrs|mme?|[djms]r|st|etc|ms?|pp?)$")
             .unwrap();
     static ref LOOKAHEAD_REGEX: Regex = Regex::new("^(?:\\.\\p{Alpha})+\\.?").unwrap();
     static ref DOUBLE_QUOTES_REGEX: Regex = Regex::new("[«»„‟“”\"]").unwrap();
@@ -226,6 +226,10 @@ mod tests {
             (
                 "This book is e.g. red etc.",
                 vec!["This book is e.g. red etc."]
+            ),
+            (
+                "MM. les ministres.",
+                vec!["MM. les ministres."]
             )
         ];
 
