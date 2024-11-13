@@ -22,6 +22,20 @@ fn is_ascii_junk_or_whitespace(c: char) -> bool {
     c <= '\x1f' || c.is_whitespace()
 }
 
+const LOOKBEHIND_SIZE: usize = 256;
+
+#[inline]
+fn find_lookbehind_bounded_start(string: &str) -> usize {
+    let mut attempt = string.len().saturating_sub(LOOKBEHIND_SIZE);
+
+    while !string.is_char_boundary(attempt) {
+        // NOTE: this cannot underflow
+        attempt -= 1;
+    }
+
+    attempt
+}
+
 #[inline]
 fn double_quotes_are_closed(string: &str) -> bool {
     DOUBLE_QUOTES_REGEX.find_iter(string).count() % 2 == 0
@@ -67,8 +81,9 @@ impl<'a> Iterator for Sentences<'a> {
         let mut find_offset: usize = 0;
 
         while let Some(m) = PUNCTUATION_REGEX.find(&self.input[find_offset..]) {
-            let lookbehind = &self.input[..find_offset + m.start()];
-            let lookbehind_with_match = &self.input[..find_offset + m.end()];
+            let lookbehind_lower_bound = find_lookbehind_bounded_start(&self.input[..find_offset]);
+            let lookbehind = &self.input[lookbehind_lower_bound..find_offset + m.start()];
+            let lookbehind_with_match = &self.input[lookbehind_lower_bound..find_offset + m.end()];
 
             if LOOKBEHIND_REGEX.is_match(lookbehind)
                 || !double_quotes_are_closed(lookbehind_with_match)
