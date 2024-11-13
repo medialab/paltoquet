@@ -123,6 +123,10 @@ mod tests {
                 "Hello, my liege.\nHow dost thou fare?",
                 vec!["Hello, my liege.", "How dost thou fare?"],
             ),
+            (
+                "Hello, my\n\n liege.\nHow dost thou\n fare?",
+                vec!["Hello, my\n\n liege.", "How dost thou\n fare?"],
+            ),
             // Shitty ellipsis
             (
                 "Hello, my liege... How dost thou fare?",
@@ -230,6 +234,10 @@ mod tests {
             (
                 "MM. les ministres.",
                 vec!["MM. les ministres."]
+            ),
+            (
+                ". Hello",
+                vec![".", "Hello"]
             )
         ];
 
