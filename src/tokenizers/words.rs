@@ -1338,9 +1338,9 @@ mod tests {
                 vec![w("almy"), p("-"), p("'")]
             ),
             (
-                "Jean--Martin",
-                vec![w("Jean--Martin")]
-            )
+                "Jean--Martin cut--that's that's that'll",
+                vec![w("Jean--Martin"), w("cut--that's"), w("that"), w("'s"), w("that"), w("'ll")]
+            ),
         ];
 
         for (tt, expected) in tests {
