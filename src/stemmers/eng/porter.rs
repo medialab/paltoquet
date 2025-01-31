@@ -100,7 +100,7 @@ pub fn porter_stemmer(word: &str) -> String {
     }
 
     if let Some(_) = STEP1A2.find(&word) {
-        word.truncate(word.len() - 1);
+        word.pop();
     }
 
     // Step 1b
@@ -108,7 +108,7 @@ pub fn porter_stemmer(word: &str) -> String {
         let stem = word[..word.len() - 1].to_string();
         let m = compute_m(&stem);
         if m > 0{
-            word.truncate(word.len() - 1);
+            word.pop();
         }
     }
 
@@ -119,16 +119,16 @@ pub fn porter_stemmer(word: &str) -> String {
             word = stem.to_string();
 
             if let Some(_) = STEP1B3.find(&word) {
-                word.push_str("e")
+                word.push('e')
             }
 
             else if double_consonant(&word, Some("lsz")) {
-                word.truncate(word.len() - 1);
+                word.pop();
             }
 
             else if compute_m(&word) == 1{
                 if let Some(_) = O_RULE.find(&word){
-                    word.push_str("e");
+                    word.push('e');
                 }
             }
         }
@@ -136,10 +136,10 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 1c
     if let Some(_) = STEP1C.find(&word){
-        let stem = word[..word.len() - 1].to_string();        
-        if let Some(_) = VOWEL_IN_STEM.find(&stem){
-            word.truncate(word.len() - 1);
-            word.push_str("i");
+        let stem = &word[..word.len() - 1];        
+        if let Some(_) = VOWEL_IN_STEM.find(stem){
+            word.pop();
+            word.push('i');
         }
     }
 
@@ -147,7 +147,7 @@ pub fn porter_stemmer(word: &str) -> String {
     for (suffix, replacement) in STEP2.iter() {
         if word.ends_with(suffix){                
             let stem = &word[..word.len() - suffix.len()];
-            if compute_m(&stem) > 0{
+            if compute_m(stem) > 0{
                 if let Some(value) = replacement {
                     word = format!("{}{}", stem, value);
                 }
@@ -196,12 +196,8 @@ pub fn porter_stemmer(word: &str) -> String {
     if let Some(_) = END_E.find(&word){
         let stem = &word[..word.len() - 1];
         let m = compute_m(&stem);
-        if m > 1{
+        if m > 1 || m == 1 && O_RULE.find(&stem).is_none(){
             word = stem.to_string();
-        } else if m == 1{
-            if O_RULE.find(&stem).is_none(){
-                word = stem.to_string();
-            }
         }
     }
 
