@@ -106,8 +106,7 @@ pub fn porter_stemmer(word: &str) -> String {
     // Step 1b
     if let Some(_) = STEP1B1.find(&word) {
         let stem = word[..word.len() - 1].to_string();
-        let m = compute_m(&stem);
-        if m > 0{
+        if compute_m(&stem) > 0{
             word.pop();
         }
     }
@@ -141,32 +140,15 @@ pub fn porter_stemmer(word: &str) -> String {
         }
     }
 
-    // Step 2
-    for (suffix, replacement) in STEP2.iter() {
+    // Step 2 and Step 3
+    for (suffix, replacement) in STEP2.iter().chain(STEP3.iter()) {
         if word.ends_with(suffix){                
             let stem = &word[..word.len() - suffix.len()];
             if compute_m(stem) > 0{
-                if let Some(value) = replacement {
-                    word = format!("{}{}", stem, value);
-                }
-                else{
-                    word = stem.to_string();
-                }
-            }
-        }
-    }
-
-    // Step 3
-    for (suffix, replacement) in STEP3.iter() {
-        if word.ends_with(suffix){                
-            let stem = &word[..word.len() - suffix.len()];
-            if compute_m(&stem) > 0{
-                if let Some(value) = replacement {
-                    word = format!("{}{}", stem, value);
-                }
-                else{
-                    word = stem.to_string();
-                }
+                word = match replacement {
+                    Some(value) => format!("{}{}", stem, value),
+                    None => stem.to_string(),
+                };
             }
         }
     }
