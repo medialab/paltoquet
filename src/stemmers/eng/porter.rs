@@ -115,10 +115,10 @@ pub fn porter_stemmer(word: &str) -> String {
     else if let Some(matched_part) = STEP1B2.find(&word) {
         let start = matched_part.start();    
         let stem = &word[..start];
-        if let Some(_) = VOWEL_IN_STEM.find(&stem){
+        if VOWEL_IN_STEM.find(&stem).is_some(){
             word = stem.to_string();
 
-            if let Some(_) = STEP1B3.find(&word) {
+            if STEP1B3.find(&word).is_some() {
                 word.push('e')
             }
 
@@ -126,10 +126,8 @@ pub fn porter_stemmer(word: &str) -> String {
                 word.pop();
             }
 
-            else if compute_m(&word) == 1{
-                if let Some(_) = O_RULE.find(&word){
-                    word.push('e');
-                }
+            else if compute_m(&word) == 1 && O_RULE.find(&word).is_some(){
+                word.push('e');
             }
         }
     }   
@@ -137,7 +135,7 @@ pub fn porter_stemmer(word: &str) -> String {
     // Step 1c
     if let Some(_) = STEP1C.find(&word){
         let stem = &word[..word.len() - 1];        
-        if let Some(_) = VOWEL_IN_STEM.find(stem){
+        if VOWEL_IN_STEM.find(stem).is_some(){
             word.pop();
             word.push('i');
         }
@@ -185,10 +183,8 @@ pub fn porter_stemmer(word: &str) -> String {
 
     if word.ends_with("ion"){
         let stem = &word[..word.len() - 3];
-        if compute_m(&stem) > 1 {
-            if let Some(_) = ION.find(&stem){
-                word = stem.to_string();
-            }
+        if compute_m(&stem) > 1 && ION.find(&stem).is_some() {
+            word = stem.to_string();
         }
     }
 
