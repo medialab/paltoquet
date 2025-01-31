@@ -64,17 +64,12 @@ const STEP4: [&str; 18] = [
 ];
 
 fn double_consonant(word: &str, exceptions: Option<&str>) -> bool {
-    let chars: Vec<char> = word.chars().collect();
-
-    if chars.len() < 2 {
-        return false;
-    }
-    let last = chars[chars.len() - 1];
-    let before_last = chars[chars.len() - 2];
-    if let Some(except) = exceptions{
-        return last == before_last && !"aeiouy".contains(last) && !except.contains(last);
-    }
-    return last == before_last && !"aeiouy".contains(last)
+    word.chars()
+        .rev()
+        .take(2)
+        .collect::<Vec<_>>()
+        .windows(2)
+        .any(|w| w[0] == w[1] && !"aeiouy".contains(w[0]) && exceptions.map_or(true, |e| !e.contains(w[0])))
 }
 
 fn compute_m(mut string: &str) -> usize {
