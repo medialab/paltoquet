@@ -196,6 +196,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_double_consonant(){
+        assert_eq!(double_consonant("spell", None), true);
+        assert_eq!(double_consonant("spell", Some("l")), false);
+    }
+
+    #[test]
     fn test_compute_m() {
         assert_eq!(compute_m("tree"), 0);
         assert_eq!(compute_m("trouble"), 1);
