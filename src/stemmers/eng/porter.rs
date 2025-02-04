@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use lazy_static::lazy_static;
 use regex_automata::meta::Regex;
 
@@ -22,31 +23,42 @@ lazy_static! {
     static ref TV: Regex = Regex::new(&format!("(?i)[{}]+$", VOWELS)).unwrap();
     static ref M: Regex = Regex::new(&format!("(?i)([{}]+[^{}]+)", VOWELS, VOWELS)).unwrap();
     static ref VOWEL_IN_STEM: Regex = Regex::new(&format!("(?i)[{}]", VOWELS)).unwrap();
-}
 
-static STEP2: Steps<21> = [
-    ("ational", Some("ate")),
-    ("tional", Some("tion")),
-    ("enci", Some("ence")),
-    ("anci", Some("ance")),
-    ("izer", Some("ize")),
-    ("abli", Some("able")),
-    ("alli", Some("al")),
-    ("entli", Some("ent")),
-    ("eli", Some("e")),
-    ("ousli", Some("ous")),
-    ("ization", Some("ize")),
-    ("ation", Some("ate")),
-    ("ator", Some("ate")),
-    ("alism", Some("al")),
-    ("iveness", Some("ive")),
-    ("fulness", Some("ful")),
-    ("ousness", Some("ous")),
-    ("aliti", Some("al")),
-    ("iviti", Some("ive")),
-    ("biliti", Some("ble")),
-    ("logi", Some("log")),
-];
+    static ref STEP2_2_INDEXED: HashMap<char, Vec<(&'static str, Option<&'static str>)>> = {
+        let mut map: HashMap<char, Vec<(&str, Option<&str>)>> = HashMap::new();
+
+        let suffixes = [
+            ("ational", Some("ate")),
+            ("tional", Some("tion")),
+            ("enci", Some("ence")),
+            ("anci", Some("ance")),
+            ("izer", Some("ize")),
+            ("abli", Some("able")),
+            ("alli", Some("al")),
+            ("entli", Some("ent")),
+            ("eli", Some("e")),
+            ("ousli", Some("ous")),
+            ("ization", Some("ize")),
+            ("ation", Some("ate")),
+            ("ator", Some("ate")),
+            ("alism", Some("al")),
+            ("iveness", Some("ive")),
+            ("fulness", Some("ful")),
+            ("ousness", Some("ous")),
+            ("aliti", Some("al")),
+            ("iviti", Some("ive")),
+            ("biliti", Some("ble")),
+            ("logi", Some("log")),
+        ];
+
+        for &(suffix, replacement) in &suffixes {
+            if let Some(penultimate) = suffix.chars().nth(suffix.len().saturating_sub(2)) {
+                map.entry(penultimate).or_default().push((suffix, replacement));
+            }
+        }
+        map
+    };
+}
 
 static STEP3: Steps<7> = [
     ("icate", Some("ic")),
@@ -95,16 +107,16 @@ pub fn porter_stemmer(word: &str) -> String {
     }
 
     // Step 1a
-    if let Some(_) = STEP1A1.find(&word) {
+    if STEP1A1.find(&word).is_some() {
         word.truncate(word.len() - 2);
     }
 
-    if let Some(_) = STEP1A2.find(&word) {
+    if STEP1A2.find(&word).is_some() {
         word.pop();
     }
 
     // Step 1b
-    if let Some(_) = STEP1B1.find(&word) {
+    if STEP1B1.find(&word).is_some() {
         let stem = word[..word.len() - 1].to_string();
         if compute_m(&stem) > 0{
             word.pop();
@@ -114,7 +126,7 @@ pub fn porter_stemmer(word: &str) -> String {
     else if let Some(matched_part) = STEP1B2.find(&word) {
         let start = matched_part.start();    
         let stem = &word[..start];
-        if VOWEL_IN_STEM.find(&stem).is_some(){
+        if VOWEL_IN_STEM.find(stem).is_some(){
             word = stem.to_string();
 
             if STEP1B3.find(&word).is_some() {
@@ -132,7 +144,7 @@ pub fn porter_stemmer(word: &str) -> String {
     }   
 
     // Step 1c
-    if let Some(_) = STEP1C.find(&word){
+    if STEP1C.find(&word).is_some(){
         let stem = &word[..word.len() - 1];        
         if VOWEL_IN_STEM.find(stem).is_some(){
             word.pop();
@@ -140,8 +152,26 @@ pub fn porter_stemmer(word: &str) -> String {
         }
     }
 
-    // Step 2 and Step 3
-    for (suffix, replacement) in STEP2.iter().chain(STEP3.iter()) {
+    // Step 2
+    if let Some(penultimate) = word.chars().nth(word.len().saturating_sub(2)) {
+        if let Some(suffixes) = STEP2_2_INDEXED.get(&penultimate) {
+            for (suffix, replacement) in suffixes {
+                if word.ends_with(suffix) {
+                    let stem = &word[..word.len() - suffix.len()];
+                    if compute_m(stem) > 0 {
+                        word = match replacement {
+                            Some(value) => format!("{}{}", stem, value),
+                            None => stem.to_string(),
+                        };
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    // Step 3
+    for (suffix, replacement) in STEP3.iter() {
         if word.ends_with(suffix){                
             let stem = &word[..word.len() - suffix.len()];
             if compute_m(stem) > 0{
@@ -157,7 +187,7 @@ pub fn porter_stemmer(word: &str) -> String {
     for suffix in STEP4.iter() {
         if word.ends_with(suffix){                
             let stem = &word[..word.len() - suffix.len()];
-            if compute_m(&stem) > 1{
+            if compute_m(stem) > 1{
                     word = stem.to_string();
             }
         }
@@ -165,27 +195,25 @@ pub fn porter_stemmer(word: &str) -> String {
 
     if word.ends_with("ion"){
         let stem = &word[..word.len() - 3];
-        if compute_m(&stem) > 1 && ION.find(&stem).is_some() {
+        if compute_m(stem) > 1 && ION.find(stem).is_some() {
             word = stem.to_string();
         }
     }
 
     // Step 5a
-    if let Some(_) = END_E.find(&word){
+    if END_E.find(&word).is_some(){
         let stem = &word[..word.len() - 1];
-        let m = compute_m(&stem);
-        if m > 1 || m == 1 && O_RULE.find(&stem).is_none(){
+        let m = compute_m(stem);
+        if m > 1 || m == 1 && O_RULE.find(stem).is_none(){
             word = stem.to_string();
         }
     }
 
     // Step 5b
-    if double_consonant(&word, None){
-        if word.ends_with("l"){
-            let stem = &word[..word.len() - 1];
-            if compute_m(&stem) > 1{
-                word = stem.to_string();
-            }
+    if double_consonant(&word, None) && word.ends_with("l"){
+        let stem = &word[..word.len() - 1];
+        if compute_m(stem) > 1{
+            word = stem.to_string();
         }
     }
     word
