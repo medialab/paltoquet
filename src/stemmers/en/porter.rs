@@ -8,13 +8,13 @@ static VOWELS_C: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæ�
 type Steps<const N: usize> = [(&'static str, Option<&'static str>); N];
 
 lazy_static! {
-    static ref STEP1A1: Regex = Regex::new(r"^(.+?)(ss|i)es$").unwrap();
-    static ref STEP1A2: Regex = Regex::new(r"^(.+?)([^s])s$").unwrap();
+    static ref STEP1A1: Regex = Regex::new(r"^(.+?)(?:ss|i)es$").unwrap();
+    static ref STEP1A2: Regex = Regex::new(r"^(.+?)[^s]s$").unwrap();
     static ref STEP1B1: Regex = Regex::new(r"^(.+?)eed$").unwrap();
-    static ref STEP1B2: Regex = Regex::new(r"(ed|ing)$").unwrap();
-    static ref STEP1B3: Regex = Regex::new(r"(at|bl|iz)$").unwrap();
+    static ref STEP1B2: Regex = Regex::new(r"(?:ed|ing)$").unwrap();
+    static ref STEP1B3: Regex = Regex::new(r"(?:at|bl|iz)$").unwrap();
     static ref STEP1C: Regex = Regex::new(r"y$").unwrap();
-    static ref ION: Regex = Regex::new(r"(s|t)$").unwrap();
+    static ref ION: Regex = Regex::new(r"(?:s|t)$").unwrap();
     static ref END_E: Regex = Regex::new(r"e$").unwrap();
 
     static ref O_RULE: Regex = Regex::new(&format!(r"(?i)[^{}][{}][^{}]$", VOWELS, VOWELS, VOWELS_C)).unwrap();
