@@ -74,12 +74,10 @@ const STEP4: [&str; 18] = [
 ];
 
 fn double_consonant(word: &str, exceptions: Option<&str>) -> bool {
-    word.chars()
-        .rev()
-        .take(2)
-        .collect::<Vec<_>>()
-        .windows(2)
-        .any(|w| w[0] == w[1] && !"aeiouy".contains(w[0]) && exceptions.map_or(true, |e| !e.contains(w[0])))
+    let mut chars = word.chars().rev().take(2);
+    let penult = chars.next().unwrap();
+    let last = chars.next().unwrap();
+    penult == last && !"aeiouy".contains(penult) && exceptions.map_or(true, |e| !e.contains(last))
 }
 
 fn compute_m(mut string: &str) -> usize {
