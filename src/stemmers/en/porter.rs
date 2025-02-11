@@ -107,16 +107,16 @@ pub fn porter_stemmer(word: &str) -> String {
     }
 
     // Step 1a
-    if STEP1A1.find(&word).is_some() {
+    if STEP1A1.is_match(&word){
         word.truncate(word.len() - 2);
     }
 
-    if STEP1A2.find(&word).is_some() {
+    if STEP1A2.is_match(&word) {
         word.pop();
     }
 
     // Step 1b
-    if STEP1B1.find(&word).is_some() {
+    if STEP1B1.is_match(&word) {
         let stem = word[..word.len() - 1].to_string();
         if compute_m(&stem) > 0{
             word.pop();
@@ -126,10 +126,10 @@ pub fn porter_stemmer(word: &str) -> String {
     else if let Some(matched_part) = STEP1B2.find(&word) {
         let start = matched_part.start();    
         let stem = &word[..start];
-        if VOWEL_IN_STEM.find(stem).is_some(){
+        if VOWEL_IN_STEM.is_match(stem){
             word = stem.to_string();
 
-            if STEP1B3.find(&word).is_some() {
+            if STEP1B3.is_match(&word) {
                 word.push('e')
             }
 
@@ -137,16 +137,16 @@ pub fn porter_stemmer(word: &str) -> String {
                 word.pop();
             }
 
-            else if compute_m(&word) == 1 && O_RULE.find(&word).is_some(){
+            else if compute_m(&word) == 1 && O_RULE.is_match(&word){
                 word.push('e');
             }
         }
     }   
 
     // Step 1c
-    if STEP1C.find(&word).is_some(){
+    if STEP1C.is_match(&word){
         let stem = &word[..word.len() - 1];        
-        if VOWEL_IN_STEM.find(stem).is_some(){
+        if VOWEL_IN_STEM.is_match(stem){
             word.pop();
             word.push('i');
         }
@@ -195,13 +195,13 @@ pub fn porter_stemmer(word: &str) -> String {
 
     if word.ends_with("ion"){
         let stem = &word[..word.len() - 3];
-        if compute_m(stem) > 1 && ION.find(stem).is_some() {
+        if compute_m(stem) > 1 && ION.is_match(stem) {
             word = stem.to_string();
         }
     }
 
     // Step 5a
-    if END_E.find(&word).is_some(){
+    if END_E.is_match(&word){
         let stem = &word[..word.len() - 1];
         let m = compute_m(stem);
         if m > 1 || m == 1 && O_RULE.find(stem).is_none(){
