@@ -5,8 +5,6 @@ use regex_automata::meta::Regex;
 static VOWELS: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœ";
 static VOWELS_C: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæœwx";
 
-type Steps<const N: usize> = [(&'static str, Option<&'static str>); N];
-
 lazy_static! {
     static ref STEP1A1: Regex = Regex::new(r"^(.+?)(?:ss|i)es$").unwrap();
     static ref STEP1A2: Regex = Regex::new(r"^(.+?)[^s]s$").unwrap();
@@ -60,7 +58,7 @@ lazy_static! {
     };
 }
 
-static STEP3: Steps<7> = [
+static STEP3: [(&'static str, Option<&'static str>); 7] = [
     ("icate", Some("ic")),
     ("ative", None),
     ("alize", Some("al")),
