@@ -55,7 +55,7 @@ lazy_static! {
     };
 }
 
-static STEP3: [(&'static str, Option<&'static str>); 7] = [
+static STEP3: [(&str, Option<&'static str>); 7] = [
     ("icate", Some("ic")),
     ("ative", None),
     ("alize", Some("al")),
@@ -136,11 +136,9 @@ pub fn porter_stemmer(word: &str) -> String {
     }   
 
     // Step 1c
-    if word.ends_with("y"){
-        if VOWEL_IN_STEM.is_match(&word[..word.len() - word.chars().last().unwrap().len_utf8()]){
-            word.pop();
-            word.push('i');
-        }
+    if word.ends_with("y") && VOWEL_IN_STEM.is_match(&word[..word.len() - word.chars().last().unwrap().len_utf8()]){
+        word.pop();
+        word.push('i');
     }
 
     // Step 2
