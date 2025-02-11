@@ -275,6 +275,8 @@ mod tests {
             ("external", "extern"),
             ("exterior", "exterior"),
             ("coffee", "coffe"),
+            ("", ""),
+            ("a", "a"),
         ];
 
         for (string, expected) in tests {
