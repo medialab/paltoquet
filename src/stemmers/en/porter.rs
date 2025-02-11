@@ -8,12 +8,9 @@ static VOWELS_C: &str = "aáàâäąåoôóøeéèëêęiíïîıuúùûüyÿæ�
 lazy_static! {
     static ref STEP1A1: Regex = Regex::new(r"^(.+?)(?:ss|i)es$").unwrap();
     static ref STEP1A2: Regex = Regex::new(r"^(.+?)[^s]s$").unwrap();
-    static ref STEP1B1: Regex = Regex::new(r"^(.+?)eed$").unwrap();
     static ref STEP1B2: Regex = Regex::new(r"(?:ed|ing)$").unwrap();
     static ref STEP1B3: Regex = Regex::new(r"(?:at|bl|iz)$").unwrap();
-    static ref STEP1C: Regex = Regex::new(r"y$").unwrap();
     static ref ION: Regex = Regex::new(r"(?:s|t)$").unwrap();
-    static ref END_E: Regex = Regex::new(r"e$").unwrap();
 
     static ref O_RULE: Regex = Regex::new(&format!(r"(?i)[^{}][{}][^{}]$", VOWELS, VOWELS, VOWELS_C)).unwrap();
 
@@ -112,7 +109,7 @@ pub fn porter_stemmer(word: &str) -> String {
     }
 
     // Step 1b
-    if STEP1B1.is_match(&word) {
+    if word.ends_with("eed"){
         let stem = word[..word.len() - word.chars().last().unwrap().len_utf8()].to_string();
         if compute_m(&stem) > 0{
             word.pop();
@@ -140,7 +137,7 @@ pub fn porter_stemmer(word: &str) -> String {
     }   
 
     // Step 1c
-    if STEP1C.is_match(&word){
+    if word.ends_with("y"){
         let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];        
         if VOWEL_IN_STEM.is_match(stem){
             word.pop();
@@ -197,7 +194,7 @@ pub fn porter_stemmer(word: &str) -> String {
     }
 
     // Step 5a
-    if END_E.is_match(&word){
+    if word.ends_with("e"){
         let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];
         let m = compute_m(stem);
         if m > 1 || m == 1 && O_RULE.find(stem).is_none(){
