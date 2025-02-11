@@ -117,7 +117,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 1b
     if STEP1B1.is_match(&word) {
-        let stem = word[..word.len() - 1].to_string();
+        let stem = word[..word.len() - word.chars().last().unwrap().len_utf8()].to_string();
         if compute_m(&stem) > 0{
             word.pop();
         }
@@ -145,7 +145,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 1c
     if STEP1C.is_match(&word){
-        let stem = &word[..word.len() - 1];        
+        let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];        
         if VOWEL_IN_STEM.is_match(stem){
             word.pop();
             word.push('i');
@@ -202,7 +202,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 5a
     if END_E.is_match(&word){
-        let stem = &word[..word.len() - 1];
+        let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];
         let m = compute_m(stem);
         if m > 1 || m == 1 && O_RULE.find(stem).is_none(){
             word = stem.to_string();
@@ -211,7 +211,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 5b
     if double_consonant(&word, None) && word.ends_with("l"){
-        let stem = &word[..word.len() - 1];
+        let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];
         if compute_m(stem) > 1{
             word = stem.to_string();
         }
