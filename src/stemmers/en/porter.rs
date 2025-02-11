@@ -110,8 +110,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 1b
     if word.ends_with("eed"){
-        let stem = word[..word.len() - word.chars().last().unwrap().len_utf8()].to_string();
-        if compute_m(&stem) > 0{
+        if compute_m(&word[..word.len() - word.chars().last().unwrap().len_utf8()]) > 0{
             word.pop();
         }
     }
@@ -138,8 +137,7 @@ pub fn porter_stemmer(word: &str) -> String {
 
     // Step 1c
     if word.ends_with("y"){
-        let stem = &word[..word.len() - word.chars().last().unwrap().len_utf8()];        
-        if VOWEL_IN_STEM.is_match(stem){
+        if VOWEL_IN_STEM.is_match(&word[..word.len() - word.chars().last().unwrap().len_utf8()]){
             word.pop();
             word.push('i');
         }
