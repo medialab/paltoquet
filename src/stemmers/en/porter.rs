@@ -268,6 +268,17 @@ mod tests {
             ("relate", "relat"),
             ("pirate", "pirat"),
             ("necessitate", "necessit"),
+            ("you", "you"),
+            ("catastrophe", "catastroph"),
+            ("anathema", "anathema"),
+            ("mathematics", "mathemat"),
+            ("adjective", "adject"),
+            ("mushroom", "mushroom"),
+            ("building", "build"),
+            ("spiteful", "spite"),
+            ("external", "extern"),
+            ("exterior", "exterior"),
+            ("coffee", "coffe"),
         ];
 
         for (string, expected) in tests {
