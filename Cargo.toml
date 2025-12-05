@@ -15,6 +15,7 @@ authors = [
 [dependencies]
 enumset = "1.1.5"
 lazy_static = "1.4.0"
+regex = "1.12.2"
 regex-automata = "0.4.7"
 regex-syntax = "0.8.4"
 unidecode = "0.3.0"

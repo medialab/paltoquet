@@ -16,7 +16,7 @@ fn main() -> anyhow::Result<()> {
     let mut writer = simd_csv::Writer::from_writer(std::io::stdout());
 
     let mut record = reader.byte_headers()?.clone();
-    record.push_field(b"");
+    record.push_field(b"phonogram");
 
     writer.write_byte_record(&record)?;
 
