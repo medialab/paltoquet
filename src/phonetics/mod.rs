@@ -1,3 +1,3 @@
 mod soundex;
 
-pub use soundex::soundex;
+pub use soundex::{refined_soundex, soundex};
