@@ -2,8 +2,8 @@ mod fingerprint;
 mod hashtags;
 mod ngrams;
 mod paragraphs;
-mod words;
 mod sentences;
+mod words;
 
 pub use fingerprint::FingerprintTokenizer;
 pub use hashtags::split_hashtag;
