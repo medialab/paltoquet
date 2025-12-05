@@ -1,3 +1,4 @@
+pub mod en;
 pub mod fr;
 mod s_stemmer;
 
