@@ -12,6 +12,9 @@ authors = [
   "Guillaume Plique <guillaume.plique@sciencespo.fr>"
 ]
 
+[lib]
+doctest = false
+
 [dependencies]
 enumset = "1.1.5"
 lazy_static = "1.4.0"
