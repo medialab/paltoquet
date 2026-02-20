@@ -85,6 +85,7 @@ fn is_vowel(c: char) -> bool {
 // TODO: more aggressive version that conflates, f,b -> v, d -> t, l -> r
 // TODO: joseph, richemond, durant durand, lorand (final nd -> nt or nothing)
 // TODO: Rousset, Burrow Burroughs
+// TODO: final rt rd
 // TODO: duane, dwayne
 // TODO: harmonize, cosmes, estiennes, esveques, vosgien, Guesde, lemoisne, dombasle le s français en somme
 // TODO: drop all final s after consonant?
