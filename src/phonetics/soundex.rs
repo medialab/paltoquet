@@ -66,6 +66,8 @@ pub fn soundex(string: &str) -> String {
         }
     }
 
+    let tail = squeeze(&tail);
+
     let offset = if tail.chars().next() == first_letter_translation {
         1
     } else {
@@ -76,7 +78,7 @@ pub fn soundex(string: &str) -> String {
 
     code.push(first_letter);
 
-    for c in squeeze(&tail[offset..]).chars().filter(|c| *c != '0') {
+    for c in tail[offset..].chars().filter(|c| *c != '0') {
         code.push(c);
 
         if code.len() == 4 {
@@ -149,6 +151,12 @@ mod tests {
             ("H560", "Henry"),
             ("M450", "Moulin"),
             ("R200", "Rousseau"),
+            ("W252", "Washington"),
+            ("L000", "Lee"),
+            ("L000", "L"),
+            ("G362", "Gutierrez"),
+            ("J250", "Jackson"),
+            ("S150", "Szczepan")
         ];
 
         for (code, name) in tests {
