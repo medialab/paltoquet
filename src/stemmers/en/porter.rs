@@ -74,7 +74,7 @@ fn double_consonant(word: &str, exceptions: Option<&str>) -> bool {
     let mut chars = word.chars().rev().take(2);
     let penult = chars.next().unwrap();
     let last = chars.next().unwrap();
-    penult == last && !"aeiouy".contains(penult) && exceptions.map_or(true, |e| !e.contains(last))
+    penult == last && !"aeiouy".contains(penult) && exceptions.is_none_or(|e| !e.contains(last))
 }
 
 fn compute_m(mut string: &str) -> usize {

@@ -29,7 +29,7 @@ pub fn reduce_lengthening(string: &str) -> String {
     output
 }
 
-pub fn squeeze(string: &str) -> Cow<str> {
+pub fn squeeze(string: &str) -> Cow<'_, str> {
     let mut output = String::new();
 
     let mut last_char: Option<char> = None;

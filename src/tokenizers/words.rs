@@ -561,60 +561,60 @@ mod tests {
 
     use super::*;
 
-    fn tokens(text: &str) -> Vec<WordToken> {
+    fn tokens(text: &str) -> Vec<WordToken<'_>> {
         WordTokens::from(text).collect()
     }
 
-    fn w(text: &str) -> WordToken {
+    fn w(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Word,
             text,
         }
     }
 
-    fn h(text: &str) -> WordToken {
+    fn h(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Hashtag,
             text,
         }
     }
 
-    fn m(text: &str) -> WordToken {
+    fn m(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Mention,
             text,
         }
     }
 
-    fn n(text: &str) -> WordToken {
+    fn n(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Number,
             text,
         }
     }
 
-    fn e(text: &str) -> WordToken {
+    fn e(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Emoji,
             text,
         }
     }
 
-    fn p(text: &str) -> WordToken {
+    fn p(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Punctuation,
             text,
         }
     }
 
-    fn u(text: &str) -> WordToken {
+    fn u(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Url,
             text,
         }
     }
 
-    fn email(text: &str) -> WordToken {
+    fn email(text: &str) -> WordToken<'_> {
         WordToken {
             kind: WordTokenKind::Email,
             text,

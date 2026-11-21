@@ -6,7 +6,7 @@
 // Journal of the American Society for Information Science (vol. 42 issue 1).
 use std::borrow::Cow;
 
-pub fn s_stemmer(string: &str) -> Cow<str> {
+pub fn s_stemmer(string: &str) -> Cow<'_, str> {
     // NOTE: it does not really interact beyond ascii boundaries
     if string.len() < 3 {
         return Cow::Borrowed(string);

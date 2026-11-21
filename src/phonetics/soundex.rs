@@ -156,7 +156,7 @@ mod tests {
             ("L000", "L"),
             ("G362", "Gutierrez"),
             ("J250", "Jackson"),
-            ("S150", "Szczepan")
+            ("S150", "Szczepan"),
         ];
 
         for (code, name) in tests {

@@ -113,7 +113,7 @@ impl<'a> From<&'a str> for Sentences<'a> {
     }
 }
 
-pub fn split_sentences(text: &str) -> Sentences {
+pub fn split_sentences(text: &str) -> Sentences<'_> {
     Sentences::from(text)
 }
 

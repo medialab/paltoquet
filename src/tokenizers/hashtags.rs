@@ -115,7 +115,7 @@ impl<'a> Iterator for HashtagParts<'a> {
     }
 }
 
-pub fn split_hashtag(text: &str) -> Option<HashtagParts> {
+pub fn split_hashtag(text: &str) -> Option<HashtagParts<'_>> {
     HashtagParts::try_from(text).ok()
 }
 
